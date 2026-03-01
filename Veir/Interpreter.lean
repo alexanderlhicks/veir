@@ -4,6 +4,7 @@ import Veir.ForLean
 import Veir.IR.WellFormed
 import Veir.PatternRewriter.Basic
 import Veir.Data.LLVM.Int.Basic
+import Veir.Data.RISCV.Reg.Basic
 
 open Veir.Data
 /-!
@@ -27,11 +28,13 @@ namespace Veir
 -/
 inductive RuntimeValue where
 | int (bitwidth : Nat) (value : LLVM.Int bitwidth)
+| reg (value : RISCV.Reg)
 deriving Inhabited
 
 instance : ToString (RuntimeValue) where
   toString
     | .int _ val => ToString.toString val
+    | .reg val => ToString.toString val
 
 /--
   The state of the interpreter at a given point in time.
@@ -115,6 +118,15 @@ def interpretOp' (ctx : IRContext OpCode) (opPtr : OperationPtr) (operands: Arra
     return (#[.int bw (LLVM.Int.mul lhs rhs flags.nsw flags.nuw)], .continue)
   | .func_return => do
     return (#[], .return operands)
+  /- Bitblastable semantics of RISC-V assembly instructions. -/
+  | .riscv_li => do
+    let value := opPtr.getProperties! ctx .riscv_li
+    let imm := BitVec.ofNat 64 value.value.value.toNat
+    return (#[.reg (RISCV.li imm)], .continue)
+  | .riscv_lui => do
+    let value := opPtr.getProperties! ctx .riscv_lui
+    let imm := BitVec.ofNat 20 value.value.value.toNat
+    return (#[.reg (RISCV.lui imm)], .continue)
   | _ => none
 
 /--

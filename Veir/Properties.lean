@@ -65,6 +65,23 @@ def LLVMConstantProperties.fromAttrDict (attrDict : Std.HashMap ByteArray Attrib
   return { value := intAttr }
 
 /--
+  Properties of the RISC-V immediate operations.
+-/
+structure RISCVImmediateProperties where
+  value : IntegerAttr
+deriving Inhabited, Repr, Hashable, DecidableEq
+
+def RISCVImmediateProperties.fromAttrDict (attrDict : Std.HashMap ByteArray Attribute) :
+    Except String RISCVImmediateProperties := do
+  if attrDict.size > 1 then
+    throw s!"RISC-V immediate operation: expected only 'value' property, but got {attrDict.size} properties"
+  let some attr := attrDict["value".toUTF8]?
+    | throw "RISC-V immediate operation: missing 'value' property"
+  let .integerAttr intAttr := attr
+    | throw s!"RISC-V immediate operation: expected 'value' to be an integer attribute, but got {attr}"
+  return { value := intAttr }
+
+/--
   A type family that maps an operation code to the type of its properties.
   For operations that do not have any properties, the type is `Unit`.
 -/
@@ -77,6 +94,8 @@ match opCode with
 | .arith_muli => NswNuwProperties
 | .llvm_add => NswNuwProperties
 | .llvm_mul => NswNuwProperties
+| .riscv_li => RISCVImmediateProperties
+| .riscv_lui => RISCVImmediateProperties
 | _ => Unit
 
 instance : HasOpInfo OpCode where
@@ -110,6 +129,8 @@ def Properties.fromAttrDict (opCode : OpCode) (attrDict : Std.HashMap ByteArray 
   case llvm_constant => exact (LLVMConstantProperties.fromAttrDict attrDict)
   case llvm_add => exact (NswNuwProperties.fromAttrDict attrDict)
   case llvm_mul => exact (NswNuwProperties.fromAttrDict attrDict)
+  case riscv_li => exact (RISCVImmediateProperties.fromAttrDict attrDict)
+  case riscv_lui => exact (RISCVImmediateProperties.fromAttrDict attrDict)
   all_goals exact (Except.ok ())
 
 /--
@@ -129,6 +150,10 @@ def Properties.toAttrDict (opCode : OpCode) (props : propertiesOf opCode) :
     if props.nuw then
       dict := dict.insert "nuw".toUTF8 (Attribute.unitAttr UnitAttr.mk)
     dict
+  | .riscv_li =>
+    (Std.HashMap.emptyWithCapacity 2).insert "value".toUTF8 (Attribute.integerAttr props.value)
+  | .riscv_lui =>
+    (Std.HashMap.emptyWithCapacity 2).insert "value".toUTF8 (Attribute.integerAttr props.value)
   | _ =>
     Std.HashMap.emptyWithCapacity 0
 
