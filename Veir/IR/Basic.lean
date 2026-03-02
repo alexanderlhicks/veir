@@ -297,6 +297,12 @@ namespace OperationPtr
 def InBounds (op : OperationPtr) (ctx : IRContext OpInfo) : Prop :=
   op ∈ ctx.operations
 
+def inBounds_def : InBounds op ctx ↔ op ∈ ctx.operations := by rfl
+
+@[no_expose]
+instance : Decidable (InBounds op ctx) := by
+  unfold InBounds; infer_instance
+
 def get (ptr : OperationPtr) (ctx : IRContext OpInfo) (inBounds : ptr.InBounds ctx := by grind) : Operation OpInfo :=
   ctx.operations[ptr]'(by unfold InBounds at inBounds; grind)
 
@@ -793,6 +799,10 @@ def InBounds (operand : OpOperandPtr) (ctx : IRContext OpInfo) : Prop :=
 theorem inBounds_def : InBounds opr ctx ↔ ∃ h, opr.index < opr.op.getNumOperands ctx h := by
   rfl
 
+@[no_expose]
+instance : Decidable (InBounds operand ctx) := by
+  unfold InBounds; infer_instance
+
 @[grind .]
 theorem InBounds_iff (operand : OpOperandPtr) (ctx : IRContext OpInfo) :
     operand.op.InBounds ctx →
@@ -923,6 +933,10 @@ theorem inBounds_def :
     InBounds opr ctx ↔ ∃ h, opr.index < opr.op.getNumSuccessors ctx h := by
   rfl
 
+@[no_expose]
+instance : Decidable (InBounds operand ctx) := by
+  unfold InBounds; infer_instance
+
 @[grind .]
 theorem inBounds_of_OperationPtr_inBounds {operand : BlockOperandPtr} {ctx : IRContext OpInfo} :
     operand.op.InBounds ctx →
@@ -1035,6 +1049,10 @@ def InBounds (result : OpResultPtr) (ctx : IRContext OpInfo) : Prop :=
 theorem inBounds_def : InBounds res ctx ↔ ∃ h, res.index < res.op.getNumResults ctx h := by
   rfl
 
+@[no_expose]
+instance : Decidable (InBounds result ctx) := by
+  unfold InBounds; infer_instance
+
 @[grind .]
 theorem inBounds_OperationPtr_getNumResults! (result : OpResultPtr) (ctx : IRContext OpInfo) (h : result.InBounds ctx) :
     result.index < result.op.getNumResults! ctx := by
@@ -1133,6 +1151,12 @@ namespace BlockPtr
 
 def InBounds (block : BlockPtr) (ctx : IRContext OpInfo) : Prop :=
   block ∈ ctx.blocks
+
+def inBounds_def : InBounds block ctx ↔ block ∈ ctx.blocks := by rfl
+
+@[no_expose]
+instance : Decidable (InBounds block ctx) := by
+  unfold InBounds; infer_instance
 
 def get (ptr : BlockPtr) (ctx : IRContext OpInfo) (inBounds : ptr.InBounds ctx := by grind) : Block :=
   ctx.blocks[ptr]'(by unfold InBounds at inBounds; grind)
@@ -1322,6 +1346,10 @@ def InBounds (arg : BlockArgumentPtr) (ctx : IRContext OpInfo) : Prop :=
 theorem inBounds_def : InBounds arg ctx ↔ ∃ h, arg.index < arg.block.getNumArguments ctx h := by
   rfl
 
+@[no_expose]
+instance : Decidable (InBounds arg ctx) := by
+  unfold InBounds; infer_instance
+
 @[grind .]
 theorem InBounds_iff (arg : BlockArgumentPtr) (ctx : IRContext OpInfo) :
     arg.block.InBounds ctx →
@@ -1449,6 +1477,14 @@ theorem inBounds_opResult (ptr : OpResultPtr) (ctx : IRContext OpInfo) :
 theorem inBounds_blockArg (ptr : BlockArgumentPtr) (ctx : IRContext OpInfo) :
     (blockArgument ptr).InBounds ctx ↔ ptr.InBounds ctx := by
   grind [InBounds]
+
+@[no_expose]
+instance : Decidable (InBounds value ctx) := by
+  cases value
+  · rw [inBounds_opResult]
+    infer_instance
+  · rw [inBounds_blockArg]
+    infer_instance
 
 def getType (arg : ValuePtr) (ctx : IRContext OpInfo) (argIn : arg.InBounds ctx := by grind) : TypeAttr :=
   match arg with
@@ -1601,6 +1637,14 @@ theorem inBounds_valueFirstUse (ptr : ValuePtr) (ctx : IRContext OpInfo) :
     (valueFirstUse ptr).InBounds ctx ↔ ptr.InBounds ctx := by
   grind [InBounds]
 
+@[no_expose]
+instance : Decidable (InBounds ctx value) := by
+  cases value
+  · rw [inBounds_operandNextUse]
+    infer_instance
+  · rw [inBounds_valueFirstUse]
+    infer_instance
+
 def get (ptrPtr : OpOperandPtrPtr) (ctx : IRContext OpInfo) (ptrPtrIn : ptrPtr.InBounds ctx := by grind) : Option OpOperandPtr :=
   match ptrPtr with
   | operandNextUse ptr => (ptr.get ctx).nextUse
@@ -1675,6 +1719,12 @@ namespace RegionPtr
 
 def InBounds (region : RegionPtr) (ctx : IRContext OpInfo) : Prop :=
   region ∈ ctx.regions
+
+def inBounds_def : region.InBounds ctx ↔ region ∈ ctx.regions := by rfl
+
+@[no_expose]
+instance : Decidable (InBounds region ctx) := by
+  unfold InBounds; infer_instance
 
 def get (ptr : RegionPtr) (ctx : IRContext OpInfo) (inBounds : ptr.InBounds ctx := by grind) : Region :=
   ctx.regions[ptr]'(by unfold InBounds at inBounds; grind)
@@ -1761,6 +1811,14 @@ theorem inBounds_operandNextUse (ptr : BlockOperandPtr) (ctx : IRContext OpInfo)
 theorem inBounds_valueFirstUse (ptr : BlockPtr) (ctx : IRContext OpInfo) :
     (blockFirstUse ptr).InBounds ctx ↔ ptr.InBounds ctx := by
   grind
+
+@[no_expose]
+instance : Decidable (InBounds ctx ptr) := by
+  cases ptr
+  · rw [inBounds_operandNextUse]
+    infer_instance
+  · rw [inBounds_valueFirstUse]
+    infer_instance
 
 def get (ptrPtr : BlockOperandPtrPtr) (ctx : IRContext OpInfo) (ptrPtrIn : ptrPtr.InBounds ctx := by grind) : Option BlockOperandPtr :=
   match ptrPtr with
@@ -1946,6 +2004,14 @@ variable {ctx : IRContext OpInfo}
 @[simp, grind =, grind =_] theorem iff_region (ptr : RegionPtr) : (region ptr).InBounds ctx ↔ ptr.InBounds ctx := by grind [InBounds]
 @[simp, grind =, grind =_] theorem iff_value (ptr : ValuePtr) : (value ptr).InBounds ctx ↔ ptr.InBounds ctx := by grind [InBounds]
 @[simp, grind =, grind =_] theorem iff_opOperandPtr (ptr : OpOperandPtrPtr) : (opOperandPtr ptr).InBounds ctx ↔ ptr.InBounds ctx := by grind [InBounds]
+
+@[no_expose]
+instance : Decidable (InBounds ptr ctx) := by
+  cases ptr <;>
+  simp only [iff_block, iff_operation, iff_result, iff_opOperand,
+    iff_blockOperand, iff_blockOperandPtr, iff_blockArgument, iff_region,
+    iff_value, iff_opOperandPtr] <;>
+  infer_instance
 
 end generic_ptr
 end GenericPtr
