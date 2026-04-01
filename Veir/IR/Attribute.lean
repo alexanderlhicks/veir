@@ -44,11 +44,22 @@ structure IntegerType where
 deriving Inhabited, Repr, DecidableEq, Hashable
 
 /--
+  A register type is an integer type with width 64.
+-/
+structure RegisterType where
+deriving Inhabited, Repr, DecidableEq, Hashable
+
+/--
   An integer literal with an associated integer type.
 -/
 structure IntegerAttr where
   value : Int
   type : IntegerType
+deriving Inhabited, Repr, DecidableEq, Hashable
+
+structure RegisterAttr where
+  value : Int
+  type : RegisterType
 deriving Inhabited, Repr, DecidableEq, Hashable
 
 /--
@@ -129,6 +140,10 @@ inductive Attribute
 | integerType (type : IntegerType)
 /-- Integer attribute -/
 | integerAttr (attr : IntegerAttr)
+/-- Register type -/
+| registerType (type : RegisterType)
+/-- Register attribute -/
+| registerAttr (attr : RegisterAttr)
 /-- String attribute -/
 | stringAttr (attr : StringAttr)
 /-- Unit attribute -/
@@ -260,6 +275,14 @@ def Attribute.decEq (attr1 attr2 : Attribute) : Decidable (attr1 = attr2) := by
     exact (match decEq type1 type2 with
       | isTrue hEq => isTrue (by grind)
       | isFalse hEq => isFalse (by grind))
+  case registerType.registerType type1 type2 =>
+    exact (match decEq type1 type2 with
+      | isTrue hEq => isTrue (by grind)
+      | isFalse hEq => isFalse (by grind))
+  case registerAttr.registerAttr type1 type2 =>
+    exact (match decEq type1 type2 with
+      | isTrue hEq => isTrue (by grind)
+      | isFalse hEq => isFalse (by grind))
   all_goals exact isFalse (by grind)
 termination_by sizeOf attr1
 end
@@ -281,6 +304,12 @@ instance : ToString IntegerType where
 
 instance : ToString IntegerAttr where
   toString attr := s!"{attr.value} : {attr.type}"
+
+instance : ToString RegisterType where
+  toString _ := s!"!reg"
+
+instance : ToString RegisterAttr where
+  toString attr := s!"{attr.value} : !reg"
 
 def escapeStringLiteral (s : String) : String := Id.run do
   let mut result := ""
@@ -363,6 +392,8 @@ def Attribute.toString (attr : Attribute) : String :=
   match attr with
   | .integerType type => ToString.toString type
   | .integerAttr attr => ToString.toString attr
+  | .registerType type => ToString.toString type
+  | .registerAttr attr => ToString.toString attr
   | .stringAttr attr => ToString.toString attr
   | .unitAttr attr => ToString.toString attr
   | .arrayAttr attr => attr.toString
@@ -442,6 +473,8 @@ def isType (attr : Attribute) : Bool :=
   | .unregisteredAttr attr => attr.isType
   | .functionType _ => true
   | .modArithType _ => true
+  | .registerType _ => true
+  | .registerAttr _ => true
 
 @[simp, grind =]
 theorem isType_integerType type : (integerType type).isType = true := by rfl
@@ -492,6 +525,9 @@ instance : Coe FunctionType TypeAttr where
 
 instance : Coe ModArithType TypeAttr where
   coe type := ⟨.modArithType type, by rfl⟩
+
+instance : Coe RegisterType TypeAttr where
+  coe type := ⟨.registerType type, by rfl⟩
 
 end
 end Veir
