@@ -1291,5 +1291,21 @@ theorem OperationPtr.idxInParentFromTail_next_lt_idxInParentFromTail
 grind_pattern OperationPtr.idxInParentFromTail_next_eq =>
   nextOp.idxInParentFromTail ctx hnextOp hctx, (op.get! ctx).next, some nextOp, ctx.WellFormed, op.InBounds ctx
 
+/--
+  Prove preservation of the `region_parent` field of `Operation.WellFormed`, if
+  region parents, number of regions, and region pointers are unchanged in the
+  new context.
+-/
+theorem Operation.WellFormed.region_parent.unchanged
+    {opPtr : OperationPtr} {ctx ctx' : IRContext OpInfo}
+    (h_getRegion : opPtr.getRegion! ctx' = opPtr.getRegion! ctx)
+    (h_numRegions : opPtr.getNumRegions! ctx' = opPtr.getNumRegions! ctx)
+    (h_parent : (region.get! ctx').parent = (region.get! ctx).parent)
+    (_h_inBounds : region.InBounds ctx)
+    (h_wf : (∃ i, i < opPtr.getNumRegions! ctx ∧ opPtr.getRegion! ctx i = region) ↔
+             (region.get! ctx).parent = some opPtr) :
+    (∃ i, i < opPtr.getNumRegions! ctx' ∧ opPtr.getRegion! ctx' i = region) ↔
+    (region.get! ctx').parent = some opPtr := by
+  simp only [h_getRegion, h_numRegions, h_parent, h_wf]
 
 end Veir
