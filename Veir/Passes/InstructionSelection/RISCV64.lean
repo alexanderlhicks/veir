@@ -105,13 +105,123 @@ def ashr (rewriter: PatternRewriter OpCode) (op: OperationPtr) :
       #[] #[] () (some $ .before op) (by sorry) (by simp) (by simp) sorry
   rewriter.replaceOp op castSraOp sorry sorry sorry
 
+set_option warn.sorry false in
+/--
+    llvm.icmp eq lhs rhs  -> riscv.sltiu (riscv.xor lhs rhs) 1
+    llvm.icmp ne lhs rhs  -> riscv.sltu 0 (riscv.xor lhs rhs)
+    llvm.icmp slt lhs rhs -> riscv.slt lhs rhs
+    llvm.icmp sle lhs rhs -> riscv.xori (riscv_slt rhs lhs) 1
+    llvm.icmp sgt lhs rhs -> riscv.slt rhs lhs
+    llvm.icmp sge lhs rhs -> riscv.xori (riscv_slt lhs rhs) 1
+    llvm.icmp ult lhs rhs -> riscv.sltu lhs rhs
+    llvm.icmp ule lhs rhs -> riscv.xori (riscv_sltu rhs lhs) 1
+    llvm.icmp ugt lhs rhs -> riscv.sltu rhs lhs
+    llvm.icmp uge lhs rhs -> riscv.xori (riscv_sltu lhs rhs) 1
+-/
+def icmp (rewriter: PatternRewriter OpCode) (op: OperationPtr) :
+    Option (PatternRewriter OpCode) := do
+  let some (lhs, rhs, property) := matchIcmp op rewriter.ctx | return rewriter
+  /- only support `i64` -/
+  let .integerType ltype := (lhs.getType! rewriter.ctx).val | return rewriter
+  if ltype.bitwidth ≠ 64 then return rewriter
+  let .integerType rtype := (rhs.getType! rewriter.ctx).val | return rewriter
+  if rtype.bitwidth ≠ 64 then return rewriter
+  /- Return if the predicate is invalid. -/
+  let p := property.value.value.toNat
+  if 10 ≤ p then return rewriter
+  /- Casting is necessary regardless of the predicate. -/
+  let (rewriter, lcastOp) ← rewriter.createOp .builtin_unrealized_conversion_cast #[RegisterType.mk] #[lhs]
+      #[] #[] () (some $ .before op) sorry (by simp) (by simp) sorry
+  let (rewriter, rcastOp) ← rewriter.createOp .builtin_unrealized_conversion_cast #[RegisterType.mk] #[rhs]
+      #[] #[] () (some $ .before op) sorry (by simp) (by simp) sorry
+  /- Casting back result for type consistency is always necessary. -/
+  let type := ((op.getResult 0).get! rewriter.ctx).type
+  let .integerType type' := type.val | rewriter
+  /- Match depending on the predicate and build correct lowering. -/
+  let (rewriter, retOp) ← match p with
+    | 0 =>
+      /- llvm.icmp eq lhs rhs  -> riscv.sltiu (riscv.xor lhs rhs) 1 -/
+      let (rewriter, xorOp) ← rewriter.createOp .riscv_xor #[RegisterType.mk] #[lcastOp.getResult 0, rcastOp.getResult 0]
+        #[] #[] () (some $ .before op) sorry (by simp) (by simp) sorry
+      let c1 := RISCVImmediateProperties.mk (IntegerAttr.mk 1 (IntegerType.mk 64))
+      let (rewriter, retOp) ← rewriter.createOp .riscv_sltiu #[RegisterType.mk] #[xorOp.getResult 0]
+        #[] #[] c1 (some $ .before op) sorry (by simp) (by simp) sorry
+      pure (rewriter, retOp)
+    | 1 =>
+      /- llvm.icmp ne lhs rhs  -> riscv.sltu 0 (riscv.xor lhs rhs) -/
+      let (rewriter, xorOp) ← rewriter.createOp .riscv_xor #[RegisterType.mk] #[lcastOp.getResult 0, rcastOp.getResult 0]
+        #[] #[] () (some $ .before op) sorry (by simp) (by simp) sorry
+      let c0 := RISCVImmediateProperties.mk (IntegerAttr.mk 0 (IntegerType.mk 64))
+      let (rewriter, liOp) ← rewriter.createOp .riscv_li #[RegisterType.mk] #[]
+        #[] #[] c0 (some $ .before op) sorry (by simp) (by simp) sorry
+      let (rewriter, retOp) ← rewriter.createOp .riscv_sltu #[RegisterType.mk] #[liOp.getResult 0, xorOp.getResult 0]
+        #[] #[] () (some $ .before op) sorry (by simp) (by simp) sorry
+      pure (rewriter, retOp)
+    | 2 =>
+      /- llvm.icmp slt lhs rhs -> riscv.slt lhs rhs  -/
+      let (rewriter, retOp) ← rewriter.createOp .riscv_slt #[RegisterType.mk] #[lcastOp.getResult 0, rcastOp.getResult 0]
+        #[] #[] () (some $ .before op) sorry (by simp) (by simp) sorry
+      pure (rewriter, retOp)
+    | 3 =>
+      /- llvm.icmp sle lhs rhs -> riscv.xori (riscv_slt rhs lhs) 1 -/
+      let (rewriter, sltOp) ← rewriter.createOp .riscv_slt #[RegisterType.mk] #[rcastOp.getResult 0, lcastOp.getResult 0]
+        #[] #[] () (some $ .before op) sorry (by simp) (by simp) sorry
+      let c1 := RISCVImmediateProperties.mk (IntegerAttr.mk 1 (IntegerType.mk 64))
+      let (rewriter, retOp) ← rewriter.createOp .riscv_xori #[RegisterType.mk] #[sltOp.getResult 0]
+        #[] #[] c1 (some $ .before op) sorry (by simp) (by simp) sorry
+      pure (rewriter, retOp)
+    | 4 =>
+      /- llvm.icmp sgt lhs rhs -> riscv.slt rhs lhs -/
+      let (rewriter, retOp) ← rewriter.createOp .riscv_slt #[RegisterType.mk] #[rcastOp.getResult 0, lcastOp.getResult 0]
+        #[] #[] () (some $ .before op) sorry (by simp) (by simp) sorry
+      pure (rewriter, retOp)
+    | 5 =>
+      /- llvm.icmp sge lhs rhs -> riscv.xori (riscv_slt lhs rhs) 1 -/
+      let (rewriter, sltOp) ← rewriter.createOp .riscv_slt #[RegisterType.mk] #[lcastOp.getResult 0, rcastOp.getResult 0]
+        #[] #[] () (some $ .before op) sorry (by simp) (by simp) sorry
+      let c1 := RISCVImmediateProperties.mk (IntegerAttr.mk 1 (IntegerType.mk 64))
+      let (rewriter, retOp) ← rewriter.createOp .riscv_xori #[RegisterType.mk] #[sltOp.getResult 0]
+        #[] #[] c1 (some $ .before op) sorry (by simp) (by simp) sorry
+      pure (rewriter, retOp)
+    | 6 =>
+      /- llvm.icmp ult lhs rhs -> riscv.sltu lhs rhs -/
+      let (rewriter, retOp) ← rewriter.createOp .riscv_sltu #[RegisterType.mk] #[lcastOp.getResult 0, rcastOp.getResult 0]
+        #[] #[] () (some $ .before op) sorry (by simp) (by simp) sorry
+      pure (rewriter, retOp)
+    | 7 =>
+      /- llvm.icmp ule lhs rhs -> riscv.xori (riscv_sltu rhs lhs) 1 -/
+      let (rewriter, sltuOp) ← rewriter.createOp .riscv_sltu #[RegisterType.mk] #[rcastOp.getResult 0, lcastOp.getResult 0]
+        #[] #[] () (some $ .before op) sorry (by simp) (by simp) sorry
+      let c1 := RISCVImmediateProperties.mk (IntegerAttr.mk 1 (IntegerType.mk 64))
+      let (rewriter, retOp) ← rewriter.createOp .riscv_xori #[RegisterType.mk] #[sltuOp.getResult 0]
+        #[] #[] c1 (some $ .before op) sorry (by simp) (by simp) sorry
+      pure (rewriter, retOp)
+    | 8 =>
+      /- llvm.icmp ugt lhs rhs -> riscv.sltu rhs lhs -/
+      let (rewriter, retOp) ← rewriter.createOp .riscv_sltu #[RegisterType.mk] #[rcastOp.getResult 0, lcastOp.getResult 0]
+        #[] #[] () (some $ .before op) sorry (by simp) (by simp) sorry
+      pure (rewriter, retOp)
+    | 9 =>
+      /- llvm.icmp uge lhs rhs -> riscv.xori (riscv_sltu lhs rhs) 1 -/
+      let (rewriter, sltuOp) ← rewriter.createOp .riscv_sltu #[RegisterType.mk] #[lcastOp.getResult 0, rcastOp.getResult 0]
+        #[] #[] () (some $ .before op) sorry (by simp) (by simp) sorry
+      let c1 := RISCVImmediateProperties.mk (IntegerAttr.mk 1 (IntegerType.mk 64))
+      let (rewriter, retOp) ← rewriter.createOp .riscv_xori #[RegisterType.mk] #[sltuOp.getResult 0]
+        #[] #[] c1 (some $ .before op) sorry (by simp) (by simp) sorry
+      pure (rewriter, retOp)
+    | _ =>
+      return rewriter
+  let (rewriter, castEqOp) ← rewriter.createOp .builtin_unrealized_conversion_cast #[type] #[retOp.getResult 0]
+        #[] #[] () (some $ .before op) (by sorry) (by simp) (by simp) sorry
+  rewriter.replaceOp op castEqOp sorry sorry sorry
+
 /-! # Pass implementation -/
 
 set_option warn.sorry false in
 def ISelPass.impl (ctx : { ctx' : IRContext OpCode // ctx'.WellFormed }) (op : OperationPtr)
     (_ : op.InBounds ctx.val) :
     ExceptT String IO { ctx' : IRContext OpCode // ctx'.WellFormed } := do
-  let pattern := RewritePattern.GreedyRewritePattern #[constant, add, and, ashr]
+  let pattern := RewritePattern.GreedyRewritePattern #[constant, add, and, ashr, icmp]
   match RewritePattern.applyInContext pattern ctx ctx.property.inBounds with
   | none => throw "Error while applying pattern rewrites"
   | some ctx => pure ⟨ctx, sorry⟩
