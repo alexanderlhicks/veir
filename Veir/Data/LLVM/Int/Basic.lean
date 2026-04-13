@@ -66,6 +66,12 @@ instance {w : Nat} : ToString (Int w) where
     | .poison => "poison"
 
 /--
+  We define the semantics of a `constant` operation.
+  The result of this operation is never poison.
+-/
+def constant (w : Nat) (v : _root_.Int) : Int w := val (BitVec.ofInt w v)
+
+/--
 The ‘add’ instruction returns the sum of its two operands.
 
 If the sum has unsigned overflow, the result returned is the mathematical result
