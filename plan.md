@@ -72,18 +72,16 @@ red as we go.
   - [x] 1 const (0/1/0/0) + 14 binary (2/1/0/0) grouped + 3 unary (1/1/0/0) grouped.
         Followed Comb's grouping pattern.
   - [x] `lake build` clean
-- [ ] **Phase 5 — `Veir/Parser/AttrParser.lean`** *(optional for round-trip;
-      required for typed felt access)*
-  - [ ] `parseOptionalFeltType` — accepts `!felt.type` and `!felt.type<"name">`
-  - [ ] Slot into `parseOptionalType` *before* the `parseOptionalDialectType` fallthrough
-  - [ ] `lake build` clean
-  - **Why optional**: Phase 6's round-trip test passes already, because the
-    `parseOptionalDialectType` fallthrough captures `!felt.type` as
-    `UnregisteredAttr` whose `ToString` is the raw text. But the
-    `IRContext` then stores `UnregisteredAttr "!felt.type"`, not
-    `FeltType { fieldName := ... }`. Any future code that wants to
-    pattern-match on `FeltType` won't see it. Phase 5 is what makes the
-    Phase 1 typed `Attribute.feltType` case actually flow through.
+- [x] **Phase 5 — `Veir/Parser/AttrParser.lean`**
+  - [x] `parseOptionalFeltType` — accepts `!felt.type` and `!felt.type<"name">`.
+        First dialect-type parser in VEIR with an *optional* `<...>` body
+        (mod_arith/cuda_tile both require their bodies; `llvm.ptr` has none
+        at all).
+  - [x] Slotted into `parseOptionalType` before the dialect-type fallthrough.
+  - [x] `lake build` clean (207/207); full lit suite stays at 264/264.
+  - Effect: textual round-trip of `!felt.type` is now backed by a real
+    `Attribute.feltType` case in the IRContext, not an `UnregisteredAttr`
+    blob. Programmatic pattern-matching on `FeltType` now works.
 - [x] **Phase 6 — Test**
   - [x] `uv run lit Test/Felt/identity.mlir` passes
   - [x] `uv run lit Test/ -v` — 264/264 (was 263/264 in baseline)
