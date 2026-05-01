@@ -107,6 +107,16 @@ structure ModArithType where
   modulusType : Option IntegerType
 deriving Inhabited, Repr, DecidableEq, Hashable
 
+/--
+  The `!felt.type` from LLZK's felt dialect.
+  An element of a finite field. The field is specified by an optional
+  name, e.g. `!felt.type<"bn254">`. When omitted, the field is left
+  unspecified and is filled in by the backend.
+-/
+structure FeltType where
+  fieldName : Option ByteArray
+deriving Inhabited, Repr, DecidableEq, Hashable
+
 namespace LLVM
 
 structure PointerType
@@ -194,6 +204,8 @@ inductive Attribute
 | unregisteredAttr (attr : UnregisteredAttr)
 /-- HEIR modarith type -/
 | modArithType (type : ModArithType)
+/-- LLZK felt type -/
+| feltType (type : FeltType)
 /-- LLVM pointer type -/
 | llvmPointerType (type : LLVM.PointerType)
 /-- Cuda Tile pointer type -/
@@ -317,6 +329,10 @@ def Attribute.decEq (attr1 attr2 : Attribute) : Decidable (attr1 = attr2) := by
     exact (match decEq type1 type2 with
       | isTrue hEq => isTrue (by grind)
       | isFalse hEq => isFalse (by grind))
+  case feltType.feltType type1 type2 =>
+    exact (match decEq type1 type2 with
+      | isTrue hEq => isTrue (by grind)
+      | isFalse hEq => isFalse (by grind))
   case registerType.registerType type1 type2 =>
     exact (match decEq type1 type2 with
       | isTrue hEq => isTrue (by grind)
@@ -394,6 +410,11 @@ instance : ToString ModArithType where
     | some modulusType => s!" : {modulusType}"
     | none => "") ++ ">"
 
+instance : ToString FeltType where
+  toString type := match type.fieldName with
+    | some name => s!"!felt.type<\"{escapeStringLiteral (String.fromUTF8! name)}\">"
+    | none => "!felt.type"
+
 instance : ToString LLVM.PointerType where
   toString _ := "!llvm.ptr"
 
@@ -466,6 +487,7 @@ def Attribute.toString (attr : Attribute) : String :=
   | .unregisteredAttr attr => ToString.toString attr
   | .functionType type => type.toString
   | .modArithType type => ToString.toString type
+  | .feltType type => ToString.toString type
   | .llvmPointerType type => ToString.toString type
   | .cudaTilePointerType type => ToString.toString type
 termination_by sizeOf attr
@@ -519,6 +541,9 @@ instance : Coe FunctionType Attribute where
 instance : Coe ModArithType Attribute where
   coe type := .modArithType type
 
+instance : Coe FeltType Attribute where
+  coe type := .feltType type
+
 instance : Coe LLVM.PointerType Attribute where
   coe type := .llvmPointerType type
 
@@ -550,6 +575,7 @@ def isType (attr : Attribute) : Bool :=
   | .unregisteredAttr attr => attr.isType
   | .functionType _ => true
   | .modArithType _ => true
+  | .feltType _ => true
   | .registerType _ => true
   | .registerAttr _ => true
   | .llvmPointerType _ => true
@@ -564,6 +590,8 @@ theorem isType_unregistered unregistered :
 theorem isType_functionType type : (functionType type).isType = true := by rfl
 @[simp, grind =]
 theorem isType_modArithType type : (modArithType type).isType = true := by rfl
+@[simp, grind =]
+theorem isType_feltType type : (feltType type).isType = true := by rfl
 @[simp, grind =]
 theorem isType_llvmPointerType type : (llvmPointerType type).isType = true := by rfl
 @[simp, grind =]
@@ -608,6 +636,9 @@ instance : Coe FunctionType TypeAttr where
 
 instance : Coe ModArithType TypeAttr where
   coe type := ⟨.modArithType type, by rfl⟩
+
+instance : Coe FeltType TypeAttr where
+  coe type := ⟨.feltType type, by rfl⟩
 
 instance : Coe RegisterType TypeAttr where
   coe type := ⟨.registerType type, by rfl⟩

@@ -43,15 +43,15 @@ red as we go.
   - [x] Confirmed: full lit suite is **263/264 green**; only `Felt/identity.mlir`
         fails, because `felt.const` falls through to `builtin.unregistered`. This
         is the expected forcing-function failure.
-- [ ] **Phase 1 — `Veir/IR/Attribute.lean`**
-  - [ ] `structure FeltType` (mirrors `ModArithType`, optional `ByteArray` fieldName)
-  - [ ] `Attribute.feltType` case
-  - [ ] `Attribute.decEq` arm
-  - [ ] `ToString FeltType`
-  - [ ] `Attribute.toString` arm + `Attribute.isType` arm
-  - [ ] `@[simp, grind =] isType_feltType` theorem
-  - [ ] `Coe FeltType Attribute`, `Coe FeltType TypeAttr`
-  - [ ] `lake build` clean
+- [x] **Phase 1 — `Veir/IR/Attribute.lean`**
+  - [x] `structure FeltType` (mirrors `ModArithType`, optional `ByteArray` fieldName)
+  - [x] `Attribute.feltType` case
+  - [x] `Attribute.decEq` arm
+  - [x] `ToString FeltType`
+  - [x] `Attribute.toString` arm + `Attribute.isType` arm
+  - [x] `@[simp, grind =] isType_feltType` theorem
+  - [x] `Coe FeltType Attribute`, `Coe FeltType TypeAttr`
+  - [x] `lake build` clean (205/205)
 - [ ] **Phase 2 — `Veir/OpCode.lean`**
   - [ ] `@[opcodes] inductive Felt` with all 18 constructors
   - [ ] `lake build` clean; verify `OpCode.fromName "felt.const".toByteArray = .felt .const`
@@ -75,10 +75,10 @@ red as we go.
 
 ## Open questions / spikes to confirm
 
-- [ ] **Does extending the `Attribute` inductive require touching
-      `IR/Fields.lean`, `GetSet.lean`, or `WellFormed.lean`?** Expectation: no.
-      Those reason about IR structure (operations/blocks/regions), and
-      attributes are opaque payloads. Will know after Phase 1 builds.
+- [x] **Does extending the `Attribute` inductive require touching
+      `IR/Fields.lean`, `GetSet.lean`, or `WellFormed.lean`?** Confirmed: no.
+      Phase 1 added a new `Attribute` case and built clean without touching
+      those files.
 - [ ] **Does `parseOptionalAttribute` reach `IntegerAttr` cleanly when the
       result type is `!felt.type`?** Expectation: yes — the value is just an
       `IntegerAttr` and the type discrimination is on the *result* type. Will
