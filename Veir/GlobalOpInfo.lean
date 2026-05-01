@@ -100,6 +100,7 @@ def Properties.fromAttrDict (opCode : OpCode) (attrDict : Std.HashMap ByteArray 
     case alloca => exact (AllocaProperties.fromAttrDict attrDict)
     case load => exact (LoadProperties.fromAttrDict attrDict)
     case store => exact (StoreProperties.fromAttrDict attrDict)
+    case getelementptr => exact (GetelementptrProperties.fromAttrDict attrDict)
     all_goals exact (Except.ok ())
   case func =>
     all_goals exact (Except.ok ())
@@ -217,6 +218,12 @@ def Properties.toAttrDict (opCode : OpCode) (props : propertiesOf opCode) :
     dict := dict.insert "alias_scopes".toUTF8 (.arrayAttr props.alias_scopes)
     dict := dict.insert "noalias_scopes".toUTF8 (.arrayAttr props.noalias_scopes)
     dict := dict.insert "tbaa".toUTF8 (.arrayAttr props.tbaa)
+    dict
+  | .llvm .getelementptr => Id.run do
+    let mut dict := Std.HashMap.emptyWithCapacity 3
+    dict := dict.insert "rawConstantIndices".toUTF8 (Attribute.denseArrayAttr props.rawConstantIndices)
+    dict := dict.insert "elem_type".toUTF8 props.elem_type
+    dict := dict.insert "noWrapFlags".toUTF8 (.integerAttr props.noWrapFlags)
     dict
   | .comb .extract =>
     (Std.HashMap.emptyWithCapacity 1).insert "lowBit".toUTF8 (Attribute.integerAttr props.lowBit)
