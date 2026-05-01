@@ -156,6 +156,23 @@ def ModArithConstantProperties.fromAttrDict (attrDict : Std.HashMap ByteArray At
   return { value := intAttr }
 
 /--
+  Properties of the `felt.const` operation.
+-/
+structure FeltConstProperties where
+  value : IntegerAttr
+deriving Inhabited, Repr, Hashable, DecidableEq
+
+def FeltConstProperties.fromAttrDict (attrDict : Std.HashMap ByteArray Attribute) :
+    Except String FeltConstProperties := do
+  if attrDict.size > 1 then
+    throw s!"felt.const: expected only 'value' property, but got {attrDict.size} properties"
+  let some attr := attrDict["value".toUTF8]?
+    | throw "felt.const: missing 'value' property"
+  let .integerAttr intAttr := attr
+    | throw s!"felt.const: expected 'value' to be an integer attribute, but got {attr}"
+  return { value := intAttr }
+
+/--
   Properties of the `cond_br` operation.
 -/
 

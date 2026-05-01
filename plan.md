@@ -59,24 +59,35 @@ red as we go.
         `Properties.fromAttrDict` (sliver of Phase 3) because both call sites
         use exhaustive matches on `OpCode`. **Adding a new opcode forces
         every exhaustive-match site to be updated in the same commit.**
-- [ ] **Phase 3 — Properties + per-dialect OpInfo**
-  - [ ] `FeltConstProperties { value : IntegerAttr }` in `Veir/Properties.lean`
+- [x] **Phase 3 — Properties + per-dialect OpInfo**
+  - [x] `FeltConstProperties { value : IntegerAttr }` in `Veir/Properties.lean`
         (clone of `ModArithConstantProperties`)
-  - [ ] `Veir/Dialects/Felt/OpInfo.lean` (clone of `Dialects/ModArith/OpInfo.lean`)
-  - [ ] Wire in `Veir/GlobalOpInfo.lean` (import + `propertiesOf` + `fromAttrDict` + `toAttrDict`)
-  - [ ] `lake build` clean
+  - [x] `Veir/Dialects/Felt/OpInfo.lean` (clone of `Dialects/ModArith/OpInfo.lean`)
+  - [x] Wired in `Veir/GlobalOpInfo.lean`: import, `propertiesOf` arm,
+        upgraded the Phase 2 placeholder in `Properties.fromAttrDict` to
+        dispatch `.const → FeltConstProperties.fromAttrDict`, and added a
+        `.felt .const => insert "value"` arm in `Properties.toAttrDict`.
+  - [x] `lake build` clean (207/207)
 - [x] **Phase 4 — `Veir/Verifier.lean`** *(landed with Phase 2)*
   - [x] 1 const (0/1/0/0) + 14 binary (2/1/0/0) grouped + 3 unary (1/1/0/0) grouped.
         Followed Comb's grouping pattern.
   - [x] `lake build` clean
-- [ ] **Phase 5 — `Veir/Parser/AttrParser.lean`**
+- [ ] **Phase 5 — `Veir/Parser/AttrParser.lean`** *(optional for round-trip;
+      required for typed felt access)*
   - [ ] `parseOptionalFeltType` — accepts `!felt.type` and `!felt.type<"name">`
   - [ ] Slot into `parseOptionalType` *before* the `parseOptionalDialectType` fallthrough
   - [ ] `lake build` clean
-- [ ] **Phase 6 — Test**
-  - [ ] `uv run lit Test/Felt/identity.mlir` passes
-  - [ ] `uv run lit Test/ -v` (full suite) stays green
-  - [ ] `lake test` (unit tests) stays green
+  - **Why optional**: Phase 6's round-trip test passes already, because the
+    `parseOptionalDialectType` fallthrough captures `!felt.type` as
+    `UnregisteredAttr` whose `ToString` is the raw text. But the
+    `IRContext` then stores `UnregisteredAttr "!felt.type"`, not
+    `FeltType { fieldName := ... }`. Any future code that wants to
+    pattern-match on `FeltType` won't see it. Phase 5 is what makes the
+    Phase 1 typed `Attribute.feltType` case actually flow through.
+- [x] **Phase 6 — Test**
+  - [x] `uv run lit Test/Felt/identity.mlir` passes
+  - [x] `uv run lit Test/ -v` — 264/264 (was 263/264 in baseline)
+  - [x] `lake test` — clean
 
 ## Open questions / spikes to confirm
 
@@ -84,12 +95,11 @@ red as we go.
       `IR/Fields.lean`, `GetSet.lean`, or `WellFormed.lean`?** Confirmed: no.
       Phase 1 added a new `Attribute` case and built clean without touching
       those files.
-- [ ] **Does `parseOptionalAttribute` reach `IntegerAttr` cleanly when the
-      result type is `!felt.type`?** Expectation: yes — the value is just an
-      `IntegerAttr` and the type discrimination is on the *result* type. Will
-      know when Phase 6 runs.
-- [ ] **`@[opcodes]` lowercasing**: `Dialect.getName = name.toLower`, so
-      `"Felt".toLower = "felt"`. Should be fine. Confirm in Phase 2.
+- [x] **Does `parseOptionalAttribute` reach `IntegerAttr` cleanly when the
+      result type is `!felt.type`?** Confirmed yes — the round-trip test
+      passes with `<{"value" = 42 : i256}>` parsing and printing correctly.
+- [x] **`@[opcodes]` lowercasing**: confirmed — `Felt → "felt"`, all 18
+      mnemonics map correctly (`felt.const`, `felt.bit_and`, etc.).
 
 ## Decisions log
 
