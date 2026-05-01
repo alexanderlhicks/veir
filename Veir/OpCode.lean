@@ -208,6 +208,28 @@ inductive Mod_Arith where
 deriving Inhabited, Repr, Hashable, DecidableEq
 
 @[opcodes]
+inductive Felt where
+| const
+| add
+| sub
+| mul
+| pow
+| div
+| uintdiv
+| sintdiv
+| umod
+| smod
+| neg
+| inv
+| bit_and
+| bit_or
+| bit_xor
+| bit_not
+| shl
+| shr
+deriving Inhabited, Repr, Hashable, DecidableEq
+
+@[opcodes]
 inductive Datapath where
 | compress
 | partial_product

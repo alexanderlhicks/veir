@@ -707,6 +707,40 @@ def OperationPtr.verifyLocalInvariants (op : OperationPtr) (ctx : IRContext OpCo
     if op.getNumSuccessors ctx opIn ≠ 0 then
       throw "Expected 0 successors"
     pure ()
+  /- FELT -/
+  | .felt .const => do
+    if op.getNumOperands ctx opIn ≠ 0 then
+      throw "Expected 0 operands"
+    if op.getNumResults ctx opIn ≠ 1 then
+      throw "Expected 1 result"
+    if op.getNumRegions ctx opIn ≠ 0 then
+      throw "Expected 0 regions"
+    if op.getNumSuccessors ctx opIn ≠ 0 then
+      throw "Expected 0 successors"
+    pure ()
+  | .felt .add | .felt .sub | .felt .mul | .felt .pow | .felt .div
+  | .felt .uintdiv | .felt .sintdiv | .felt .umod | .felt .smod
+  | .felt .bit_and | .felt .bit_or | .felt .bit_xor
+  | .felt .shl | .felt .shr => do
+    if op.getNumOperands ctx opIn ≠ 2 then
+      throw "Expected 2 operands"
+    if op.getNumResults ctx opIn ≠ 1 then
+      throw "Expected 1 result"
+    if op.getNumRegions ctx opIn ≠ 0 then
+      throw "Expected 0 regions"
+    if op.getNumSuccessors ctx opIn ≠ 0 then
+      throw "Expected 0 successors"
+    pure ()
+  | .felt .neg | .felt .inv | .felt .bit_not => do
+    if op.getNumOperands ctx opIn ≠ 1 then
+      throw "Expected 1 operand"
+    if op.getNumResults ctx opIn ≠ 1 then
+      throw "Expected 1 result"
+    if op.getNumRegions ctx opIn ≠ 0 then
+      throw "Expected 0 regions"
+    if op.getNumSuccessors ctx opIn ≠ 0 then
+      throw "Expected 0 successors"
+    pure ()
   /- RISCV -/
   | .riscv .li => do
     if op.getNumOperands ctx opIn ≠ 0 then

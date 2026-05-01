@@ -52,18 +52,23 @@ red as we go.
   - [x] `@[simp, grind =] isType_feltType` theorem
   - [x] `Coe FeltType Attribute`, `Coe FeltType TypeAttr`
   - [x] `lake build` clean (205/205)
-- [ ] **Phase 2 — `Veir/OpCode.lean`**
-  - [ ] `@[opcodes] inductive Felt` with all 18 constructors
-  - [ ] `lake build` clean; verify `OpCode.fromName "felt.const".toByteArray = .felt .const`
+- [x] **Phase 2 — `Veir/OpCode.lean` (+ Phase 4 + sliver of Phase 3)**
+  - [x] `@[opcodes] inductive Felt` with all 18 constructors
+  - [x] `lake build` clean — required pulling in the verifier arms (Phase 4)
+        and a placeholder `case felt => all_goals exact (Except.ok ())` in
+        `Properties.fromAttrDict` (sliver of Phase 3) because both call sites
+        use exhaustive matches on `OpCode`. **Adding a new opcode forces
+        every exhaustive-match site to be updated in the same commit.**
 - [ ] **Phase 3 — Properties + per-dialect OpInfo**
   - [ ] `FeltConstProperties { value : IntegerAttr }` in `Veir/Properties.lean`
         (clone of `ModArithConstantProperties`)
   - [ ] `Veir/Dialects/Felt/OpInfo.lean` (clone of `Dialects/ModArith/OpInfo.lean`)
   - [ ] Wire in `Veir/GlobalOpInfo.lean` (import + `propertiesOf` + `fromAttrDict` + `toAttrDict`)
   - [ ] `lake build` clean
-- [ ] **Phase 4 — `Veir/Verifier.lean`**
-  - [ ] 18 arms (1 const, 14 binary, 3 unary). Mechanical clones of `mod_arith.add`/`mod_arith.constant`.
-  - [ ] `lake build` clean
+- [x] **Phase 4 — `Veir/Verifier.lean`** *(landed with Phase 2)*
+  - [x] 1 const (0/1/0/0) + 14 binary (2/1/0/0) grouped + 3 unary (1/1/0/0) grouped.
+        Followed Comb's grouping pattern.
+  - [x] `lake build` clean
 - [ ] **Phase 5 — `Veir/Parser/AttrParser.lean`**
   - [ ] `parseOptionalFeltType` — accepts `!felt.type` and `!felt.type<"name">`
   - [ ] Slot into `parseOptionalType` *before* the `parseOptionalDialectType` fallthrough
