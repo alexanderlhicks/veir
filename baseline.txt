@@ -1,0 +1,33 @@
+# Baseline before any Felt port changes
+# Branch: llzkfelt_test1, base: main @ 0882538
+# Date: 2026-05-01
+# Host: 14 cores, 62GB RAM, 19GB swap
+# Toolchain: Lean 4.31.0-nightly-2026-04-29 / Lake 5.0.0-src
+
+## lake build
+
+CLEAN (205/205 targets) on retry.
+
+First attempt failed with exit 143 (SIGTERM) on
+Veir.Rewriter.GetSet.{DetachOp,CreateOp} due to an elan toolchain-lock
+race at startup (another process held nightly-2026-04-29.lock).
+Not OOM, not a real Lean error. Retry was clean.
+
+## lake test
+
+CLEAN. UnitTest target builds (40/40); unit tests run through.
+
+## uv run lit Test/ -v
+
+263 of 264 pass. The only failure is the forcing-function test we just added:
+
+  FAIL: VeIR :: Felt/identity.mlir (3 of 264)
+
+It fails because `felt.const` is an unregistered op (parser falls back to
+`builtin.unregistered`):
+
+  | Couldn't match "felt.const"() <{"value" = 42 : i256}>...
+  |   %5 = "builtin.unregistered"() : () -> !felt.type
+
+Phase 0 complete: harness in place, forcing function failing for the right
+reason, rest of suite green.
