@@ -61,6 +61,9 @@ def Properties.fromAttrDict (opCode : OpCode) (attrDict : Std.HashMap ByteArray 
   case string op =>
     cases op
     case new => exact (StringNewProperties.fromAttrDict attrDict)
+  case «include» op =>
+    cases op
+    all_goals exact (Except.ok ())
   case felt op =>
     cases op
     case const => exact (FeltConstProperties.fromAttrDict attrDict)

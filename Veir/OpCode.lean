@@ -242,6 +242,11 @@ inductive String_ where
 deriving Inhabited, Repr, Hashable, DecidableEq
 
 @[opcodes]
+inductive Include_ where
+| from
+deriving Inhabited, Repr, Hashable, DecidableEq
+
+@[opcodes]
 inductive Datapath where
 | compress
 | partial_product
