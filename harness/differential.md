@@ -3,10 +3,22 @@
 Architecture for catching silent semantic drift between VEIR's
 implementation of an LLZK dialect and LLZK's own C++ implementation.
 
-**Status**: architecture only. The harness scripts are scaffolded;
-running them requires a local build of `llzk-opt` (see §3.1). Tests
-that require `llzk-opt` skip gracefully if the binary isn't on
-`$PATH`, so the suite stays green on hosts without LLZK built.
+**Status**: scaffold complete. Hardened script + per-dialect tests
+land at `scripts/llzk-diff.sh` and `Test/LLZK/<dialect>/differential/`
+(7 inputs, 1 allowlist for the Felt IntegerAttr divergence).
+Running the diffs requires a local build of `llzk-opt` (see §3.1).
+Tests carry `// REQUIRES: llzk-opt` and lit auto-skips them as
+`UNSUPPORTED` when the binary is missing — the suite stays green on
+hosts without LLZK built.
+
+**Smoke check** (current host without llzk-opt):
+```
+$ uv run lit Test/LLZK/ -v
+…
+Total Discovered Tests: 21
+  Unsupported:   7 (33.33%)   ← differential tests
+  Passed     : 14 (66.67%)   ← identity + invalid pairs
+```
 
 ---
 
@@ -87,53 +99,93 @@ a failure. Anything not on the list is a hard fail.
 
 ### §3.1 Building `llzk-opt` locally
 
-LLZK builds via Nix (`llzk-lib/flake.nix`) or CMake. Either way the
-build requires:
+LLZK ships two build paths (see `llzk-lib/doc/doxygen/01_setup.md`).
+Both produce an `llzk-opt` binary; the Nix path uses LLZK's public
+binary cache so the cold build is minutes, not the ~hour-plus of a
+manual LLVM compile.
 
-- LLVM/MLIR headers (matching version)
-- `llzk-tblgen` to generate per-dialect inc files
-- C++17 toolchain
-
-Recommended one-time setup:
+**Nix + Cachix (recommended)**
 
 ```bash
+# Install Nix (single-user install, no sudo daemon):
+sh <(curl -L https://nixos.org/nix/install) --no-daemon
+# OR multi-user (recommended on shared hosts; needs sudo):
+# sh <(curl -L https://nixos.org/nix/install) --daemon
+
+# Configure LLZK's binary cache so LLVM doesn't compile from source:
+nix-env -iA cachix -f https://cachix.org/api/v1/install
+cachix use veridise-public
+
+# Build llzk-opt:
 cd llzk-lib
-nix build .#llzk-opt           # if Nix available, ~30 min cold
-# OR
-mkdir build && cd build
-cmake .. -DMLIR_DIR=...        # standard MLIR out-of-tree pattern
-make llzk-opt -j
+nix build '.#llzk-opt'         # ~5-20 min with cache hits
+# binary lands at: result/bin/llzk-opt
+
+export LLZK_OPT="$PWD/result/bin/llzk-opt"
 ```
 
-After building, put `llzk-opt` on `$PATH` or set `$LLZK_OPT` to the
-absolute path.
+**Manual (no Nix)**
+
+Needs CMake 3.18+, Ninja, Clang 16+, Z3, Python3. See
+`llzk-lib/doc/doxygen/01_setup.md` for the full procedure (it
+includes building LLVM/MLIR from source, ~1–3 h).
+
+**Verifying**
+
+```bash
+export LLZK_OPT=/path/to/llzk-opt        # (or just put on $PATH)
+uv run lit Test/LLZK/ -v
+# Differential tests should now report PASS, not UNSUPPORTED.
+```
 
 ### §3.2 The diff script
 
-`scripts/llzk-diff.sh` (created alongside this doc) is the
-single-test runner:
+`scripts/llzk-diff.sh` is the single-test runner:
 
 ```
-scripts/llzk-diff.sh <input.mlir> [--allowlist <file>]
+scripts/llzk-diff.sh <input.mlir> [--allowlist <file>] [--lower-first]
 ```
+
+Flags and env:
+- `--allowlist <file>` — apply per-test fixed-string substitutions
+  before diffing (see §4 for format)
+- `--lower-first` — first pass the input through
+  `llzk-opt --mlir-print-op-generic` (use when input is in LLZK's
+  custom assembly; default assumes generic-form input)
+- `$LLZK_OPT` — explicit path to llzk-opt (otherwise discovered on `$PATH`)
+- `$VEIR_DIFF_VERBOSE=1` — stream stage progress to stderr
+- `$VEIR_DIFF_KEEP=1` — retain intermediate temp files after exit
 
 Exit codes:
-- `0` — identical (modulo allowlist)
+- `0` — identical (modulo normalization + allowlist)
 - `1` — differs
-- `77` — `llzk-opt` not found (lit treats as SKIP)
+- `2` — bad invocation / unreadable input
+- `77` — `llzk-opt` or `lake` not found (lit + `// REQUIRES: llzk-opt`
+  treats this as UNSUPPORTED)
+
+Internals (5 stages):
+1. *(optional)* lower input via `llzk-opt --mlir-print-op-generic`
+2. round-trip the generic-form input through both `veir-opt` and `llzk-opt`
+3. normalize each output: trailing whitespace, blank-line runs,
+   quoted-or-unquoted attribute keys, SSA value names (`%anything → %V<n>`),
+   block labels (`^bb0 → ^B0`)
+4. apply allowlist substitutions to both files (fixed-string, not regex)
+5. unified-diff with file labels — exit 0 if identical, 1 with diff dumped
+   to stderr if not
 
 ### §3.3 Lit integration
 
-A differential test is a normal `.mlir` file in
-`Test/LLZK/<Dialect>/differential/` with a `RUN` line invoking the
-diff script:
+`Test/lit.cfg` registers the `llzk-opt` feature only when the binary
+is on `$PATH` (or `$LLZK_OPT` is set), and substitutes `%scripts` for
+the absolute path to `scripts/`. A differential test then reads:
 
 ```mlir
-// RUN: scripts/llzk-diff.sh %s --allowlist %s.allowlist
+// REQUIRES: llzk-opt
+// RUN: %scripts/llzk-diff.sh %s [--allowlist %s.allowlist] [--lower-first]
 ```
 
-If `llzk-opt` is missing, the test SKIPs (exit 77 per lit convention).
-The host without LLZK built still sees a green suite.
+When the feature is unavailable, lit reports the test as `UNSUPPORTED`,
+not `FAIL`. The host without LLZK built sees a fully green suite.
 
 ---
 
@@ -144,12 +196,13 @@ its `identity.mlir` passes. The rollout order:
 
 | Dialect | Differential test added | Notes |
 |---|---|---|
-| Felt | 🚧 pending | First candidate. Known divergence: `#felt.const<v>` ↔ `IntegerAttr`. Module-level Felt tests need no Function wrapper. |
-| String | 🚧 pending | Simple. `string.new "x"` at module level. |
-| Cast | (after port) | Depends on Felt. |
-| RAM | (after port) | MemRead/MemWrite traits not encoded in VEIR — divergence in attribute dictionary likely. |
-| Bool | (after port) | Enum-as-IntegerAttr divergence likely. |
-| Constrain | (after port) | Trivial; almost no surface. |
+| Felt | ✅ scaffolded | `differential/arith.mlir` + `.allowlist` — encodes the `#felt.const<v>` ↔ `IntegerAttr` divergence. |
+| String | ✅ scaffolded | `differential/literals.mlir`. No known divergences. |
+| Include | ✅ scaffolded | `differential/from.mlir`. Exercises FlatSymbolRefAttr round-trip. |
+| RAM | ✅ scaffolded | `differential/load_store.mlir`. MemRead/MemWrite not in printed form, so expect a match. |
+| Cast | ✅ scaffolded | `differential/casts.mlir`. No known divergences. |
+| Bool | ✅ scaffolded | `differential/logical.mlir`. Excludes `bool.cmp` (deferred). |
+| Constrain | ✅ scaffolded | `differential/eq.mlir`. `constrain.in` deferred (Phase D.3). |
 | Global, Function, Struct | (after port) | Wait for Tier 3. |
 
 Each dialect gets a directory:

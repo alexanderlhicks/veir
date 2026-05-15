@@ -1,0 +1,8 @@
+# Allowlist for Felt differential tests.
+# Format: "from-literal" -> "to-literal"     (fixed-string substitution; comments after are free-form)
+# See harness/differential.md §2 (Allowlist) and harness/coverage.md §Attributes.
+
+# VEIR stores felt.const's value as IntegerAttr; LLZK as #felt.const<N>.
+# Collapse to the LLZK form before diff. (harness/coverage.md §Attributes:#felt.const)
+"<{value = 42 : i256}>" -> "<{value = #felt.const<42>}>"
+"<{value = 7 : i256}>" -> "<{value = #felt.const<7>}>"
