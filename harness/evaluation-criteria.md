@@ -135,9 +135,8 @@ A verified pass pilot is **Done** when all of the following hold:
 
 ## §C. Infrastructure addition — "Done"
 
-For phases that add VEIR-side machinery (Phase B symbol-table design,
-Phase C `SymbolRefAttr`/`AffineMapAttr`/variadic-of-variadic, Phase F
-regions):
+For phases that add VEIR-side machinery (Phase C `AffineMapAttr` /
+variadic-of-variadic, Phase F regions + symbol-table semantics):
 
 ### C.1 Design doc
 

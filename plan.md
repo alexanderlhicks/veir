@@ -68,41 +68,40 @@ In dependency order:
 Acceptance: each dialect has a `Test/<Dialect>/identity.mlir`, full lit
 suite green, build clean, `harness/coverage.md` row updated.
 
-### Phase B — Symbol-table architecture spike (≈1 week)
+### Phase B — Symbol-table architecture spike  **[RETIRED 2026-05-15]**
 
-**This is a design phase, not a port.** It blocks all of Tier 2 except
-Bool-with-enum.
+Originally a 1-week design phase for symbol-table semantics. Assessed
+and retired after Tier 1 + the upstream merge revealed:
 
-Open question: can VEIR's verified `Operation`/`IRContext` encode the
-MLIR `SymbolTable` trait (parent op with `Symbol` trait, child symbols
-looked up by `SymbolRefAttr`, nested tables), or does it need a new
-structural layer in `Veir/IR/`?
+1. **Flat `@name` parsing landed upstream** (PR #533, `FlatSymbolRefAttr`).
+   Include consumes it directly; no spike needed.
+2. **Tier 2 (Global, POD, Array) needs nothing beyond flat refs** — the
+   one symbol-using site, `!array.type<5,@N x !felt.type>`, takes a single
+   flat ref inside a parametric type.
+3. **Tier 3 (Function, Polymorphic, Struct) does need nested `@A::@B`
+   plus SymbolTable semantics**, but those are *gated on Phase F (regions)*.
+   The two design decisions should be made together, not in isolation.
 
-- [ ] **B.1** Read `Veir/IR/{Basic, Fields, GetSet, OpInfo, WellFormed}.lean`
-      and write a short design note: `harness/symbol-table-spike.md`.
-- [ ] **B.2** Decide: encode via attributes only, or extend the verified
-      structure. Record decision in coverage.md.
-- [ ] **B.3** Prototype the chosen path with one of `Include` (already
-      ported; promote to symbol-producer status) or `Global`.
+The original framing is preserved in `harness/symbol-table-spike.md`
+(marked deferred) and the remaining open questions are folded into
+Phase F's design scope.
 
-Acceptance: design note merged; one concrete prototype op working.
+### Phase C — Attribute & operand infrastructure (≈2 weeks)
 
-### Phase C — Symbol & attribute infrastructure (≈2 weeks)
+Lands the per-dialect attribute and operand machinery needed by
+Tier 2. (Originally included a `SymbolRefAttr` parser; that's now
+delivered by upstream.)
 
-Lands the actual infrastructure decided in Phase B, plus the
-black-box attribute additions.
-
-- [ ] **C.1** `SymbolRefAttr` in `Attribute.lean` + parser
-- [ ] **C.2** `AffineMapAttr` in `Attribute.lean` + parser (black-box: store the textual form, no semantic interpretation yet)
-- [ ] **C.3** Variadic-of-variadic operand handling in `OpCode`/`Verifier`
-- [ ] **C.4** Enum-attribute story finalized (either a per-dialect parser pattern, or keep the `IntegerAttr` workaround documented)
+- [ ] **C.1** `AffineMapAttr` in `Attribute.lean` + parser (black-box: store the textual form, no semantic interpretation yet)
+- [ ] **C.2** Variadic-of-variadic operand handling in `OpCode`/`Verifier`
+- [ ] **C.3** Enum-attribute story finalized (either a per-dialect parser pattern, or keep the `IntegerAttr` workaround documented)
 
 Acceptance: one consumer dialect for each piece of infra lands as a
 follow-on commit on the same branch.
 
 ### Phase D — Tier 2 dialects (≈1–2 weeks)
 
-- [ ] **D.1 Global** — uses C.1
+- [ ] **D.1 Global** — uses upstream `FlatSymbolRefAttr` (no new infra)
 - [ ] **D.2 POD** — uses C.2 + C.3
 - [ ] **D.3 Array** (types + non-symbol ops) — uses C.2 + C.3
 - [ ] **D.4 Bool full** — adds `bool.cmp` (uses C.4 if enum parser; else stays on `IntegerAttr`)
@@ -126,18 +125,30 @@ First verified LLZK-touching pass, deliberately scoped small.
 
 Acceptance: build green, lit green, zero new `sorry` in the new files.
 
-### Phase F — Region infrastructure (≈3–6 weeks)
+### Phase F — Region infrastructure + symbol-table design (≈3–6 weeks)
 
 Major architectural addition to VEIR's verified IR. Gates Function,
 Polymorphic, Struct, Array (with symbol-bearing dims used inside
 regions), and almost all LLZK transform passes.
 
+Includes the design questions that were originally Phase B (now
+retired) because they're tightly coupled to region semantics:
+
 - [ ] **F.1** Design note: structural region representation (block
       ownership, terminator op verification, IsolatedFromAbove
-      semantics, region-as-symbol-table-scope).
+      semantics, region-as-symbol-table-scope). Includes the
+      former Phase B questions:
+  - [ ] nested `SymbolRefAttr` (`@A::@B`) parsing + storage
+  - [ ] `SymbolTable` trait on parent ops; child-lookup semantics
+  - [ ] `SymbolUserOpInterface` resolution at use sites
+  - [ ] whether `WellFormed` includes symbol integrity, or symbol
+        resolution stays an unverified pass-level concern (recommended
+        hybrid path from `harness/symbol-table-spike.md` still applies)
 - [ ] **F.2** Implementation in `Veir/IR/`.
 - [ ] **F.3** Update `Veir/Rewriter/` for region-aware rewrites.
 - [ ] **F.4** Re-prove WellFormed preservation.
+- [ ] **F.5** Prototype `Function.def` (a Symbol producer with a
+      region body) as the first concrete consumer of both pieces.
 
 This is its own project; the design note should land before
 committing to a schedule.

@@ -26,7 +26,7 @@ port. See `harness/porting-notes.md` for the durable gotchas, and
   - [ ] `llzk-lib/include/llzk/Dialect/<X>/IR/OpInterfaces.td` (if present)
 - [ ] Confirm against `harness/coverage.md`: does this dialect require
       any infrastructure VEIR doesn't yet have? If yes, stop and read
-      the relevant Phase B/C work plan in `plan.md`.
+      the relevant Phase C/F work plan in `plan.md`.
 
 ## Phase 0 — Failing forcing function (5 min)
 

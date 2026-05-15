@@ -1,15 +1,29 @@
-# Symbol-table architecture spike
+# Symbol-table architecture spike  **[DEFERRED 2026-05-15 — folded into Phase F]**
 
-**Status**: 🚧 open, but **partially mitigated upstream**. Plan phase B
-(gates Tier 2 / Phase C+D).
+**Status**: phase retired from the active queue. The remaining
+open questions are tightly coupled to region semantics and live in
+Phase F's design scope (see `plan.md`).
 
-**2026-05-15 update**: VEIR upstream merged PR #533 (`Add
-FlatSymbolRefAttr`), which delivers the flat `@name` parser sketched
-below as the "minimal" Hybrid Recommendation. That removes the
-question for the *flat* case but leaves the harder questions open:
-nested `@A::@B` paths, `SymbolTable`-trait semantics, lookup /
-resolution, and whether well-formedness should include symbol
-integrity. This file now covers those remaining questions.
+**Why deferred** (assessment after Tier 1):
+
+1. **Flat `@name` parsing landed upstream** (PR #533,
+   `FlatSymbolRefAttr`). Include consumes it directly, no spike needed.
+2. **Tier 2 dialects (Global, POD, Array) need nothing beyond flat refs.**
+   Empirically validated: Include shipped without any symbol-table
+   machinery; Global will be the same.
+3. **Tier 3 (Function, Polymorphic, Struct) does need nested `@A::@B`
+   plus SymbolTable semantics**, but those are gated on regions
+   (Phase F). Designing them in isolation now produces a doc that
+   goes stale before any code consumes it.
+
+**What this doc still serves**: a reference for the design questions
+that *will* need resolving when Phase F starts. The "Hybrid"
+recommendation below — flat parser landed, lookup as an unverified
+walker — is still the recommended starting point; what changes when
+Phase F engages is whether `WellFormed` extends to cover symbol
+integrity.
+
+**Pointer**: see `plan.md` §Phase F for the consolidated design scope.
 
 This is a placeholder + framing doc. The actual design work is the
 next concrete action item; this document records the question, the

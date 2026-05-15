@@ -64,7 +64,7 @@ document for the protocol.
 | `#field<name, prime>` (`LLZK_FieldSpecAttr`) | ❌ | Field modulus not encoded anywhere. Bigger semantic gap than the textual one. |
 | `#bool.cmp<eq|ne|lt|le|gt|ge>` (enum) | ❌ | Bool `cmp` predicate. Planned C.4. Workaround if deferred: store as `IntegerAttr` (0..5). |
 | `SymbolRefAttr` (flat: `@name`) | ✅ | Landed upstream PR #533 as `FlatSymbolRefAttr`. Stored as the raw text including the `@`. Parsed via `parseOptionalFlatSymbolRefAttr`. |
-| `SymbolRefAttr` (nested: `@outer::@inner`) | ❌ | Not yet representable. Needed for Struct/Polymorphic nested member references. Phase B (re-scoped). |
+| `SymbolRefAttr` (nested: `@outer::@inner`) | ❌ | Not yet representable. Needed for Struct/Polymorphic nested member references. Phase F (folded in from retired Phase B). |
 | `AffineMapAttr` (`affine_map<(i,j) -> (i+j)>`) | ❌ | Planned C.2. Black-box (textual) representation recommended initially. |
 | `DenseI32ArrayAttr` | ✅ (`DenseArrayAttr`) | — |
 | `StrArrayAttr` | ❌ | Used by POD field names. Phase D.2. |
@@ -77,12 +77,12 @@ document for the protocol.
 | Feature | Status | Caveats |
 |---|---|---|
 | `FlatSymbolRefAttr` (`@name`) as an `Attribute` case | ✅ | Landed upstream PR #533. |
-| Nested `SymbolRefAttr` (`@outer::@inner`) | ❌ | Phase B / Phase C extension. |
+| Nested `SymbolRefAttr` (`@outer::@inner`) | ❌ | Phase F (folded in from retired Phase B). |
 | `Symbol` trait (op declares a name) | ⚠️ | The trait is not encoded, but operationally an op can store a `FlatSymbolRefAttr` in its property dict and that round-trips. No invariant that the name is unique within a scope. |
-| `SymbolUserOpInterface` (op resolves a symbol) | ❌ | No lookup. Phase B (design). |
-| `SymbolTable` trait (parent op contains symbols) | ❌ | Phase B (design). May require structural extension to verified IR. |
+| `SymbolUserOpInterface` (op resolves a symbol) | ❌ | No lookup. Phase F (design alongside regions). |
+| `SymbolTable` trait (parent op contains symbols) | ❌ | Phase F (design). May require structural extension to verified IR. |
 | `LLZKSymbolTable` (custom LLZK variant) | ❌ | Phase G (Polymorphic, Struct). |
-| Nested symbol lookup (`@A::@B`) | ❌ | Phase C.1 parser; semantic resolution gated on Phase B design. |
+| Nested symbol lookup (`@A::@B`) | ❌ | Phase F: parser + semantic resolution land together with regions. |
 
 ---
 
@@ -163,7 +163,7 @@ opcodes that implement the interface.
 | `Involution` | ❌ | — |
 | `MemRead`, `MemWrite`, `MemoryEffects<...>` | ❌ | Not modeled. RAM dialect ops will round-trip but VEIR sees them as generic ops. |
 | `IsolatedFromAbove` | ❌ | Phase F. |
-| `SymbolTable`, `Symbol` (MLIR builtin) | ❌ | Phase B (design). |
+| `SymbolTable`, `Symbol` (MLIR builtin) | ❌ | Phase F (design alongside regions). |
 | `ConstantLike` | ❌ | — |
 | `HasFolder` (`hasFolder = 1`) | ❌ | No folder dispatch. Folders are an LLZK concept that maps to "constant folding inside the verifier"; VEIR doesn't have this hook. |
 | `NotFieldNative` (LLZK-specific) | ❌ | Marks ops that aren't field-native (e.g., bit ops on felts). Not encoded. |

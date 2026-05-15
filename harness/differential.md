@@ -230,7 +230,7 @@ A useful differential test:
    interactions.
 4. **Avoids LLZK-only sugar**: no `function.return` short forms,
    no `affine_map` literals (until Phase C), no `@symbol::@nested`
-   (until Phase B).
+   (until Phase F lands nested symbol support).
 5. **Documents** the expected divergences in the allowlist with
    `coverage.md` row references.
 

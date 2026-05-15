@@ -151,7 +151,8 @@ trait (Include, Function.def, Struct.def, Poly.template, Global.def)
 can now store its `sym_name` as a `FlatSymbolRefAttr` in its property
 dict. **Caveat**: there is still no `SymbolTable` trait, no symbol
 resolution (`SymbolUserOpInterface`), and no invariant that the name
-is unique within a scope. Those remain Phase B work.
+is unique within a scope. Those remain Phase F work (the standalone
+Phase B was retired 2026-05-15; see plan.md).
 
 ---
 
