@@ -132,7 +132,7 @@ theorem Rewriter.detachOp_WellFormed (ctx : IRContext OpInfo) (wf : ctx.WellForm
     constructor
     case region_parent =>
       intro region regionInBounds
-      apply Operation.WellFormed.region_parent.unchanged (ctx := ctx) <;> grind
+      apply OperationPtr.WellFormed.region_parent.unchanged (ctx := ctx) <;> grind
     case opChain_of_parent_none =>
       cases hParent: (op.get! ctx).parent
         <;> grind [BlockPtr.OpChain_next_ne, BlockPtr.OpChain_prev_ne]
@@ -140,9 +140,9 @@ theorem Rewriter.detachOp_WellFormed (ctx : IRContext OpInfo) (wf : ctx.WellForm
   case blocks =>
     intros bl hbl
     have : bl.InBounds ctx := by grind
-    grind [Block.WellFormed_unchanged]
+    grind [BlockPtr.WellFormed_unchanged]
   case regions =>
-    grind [Region.WellFormed_unchanged]
+    grind [RegionPtr.WellFormed_unchanged]
 
 end detachOp
 
@@ -197,6 +197,44 @@ theorem Rewriter.detachOpIfAttached_WellFormed (ctx : IRContext OpInfo) (wf : ct
   grind [Rewriter.detachOp_WellFormed]
 
 end detachOpIfAttached
+
+section setAttributes
+
+theorem OperationPtr.setAttributes_WellFormed (ctx : IRContext OpInfo) (op : OperationPtr)
+    (hctx : ctx.WellFormed) (hop : op.InBounds ctx) (newAttrs : DictionaryAttr) :
+    (op.setAttributes ctx newAttrs hop).WellFormed := by
+  have ⟨h₁, h₂, h₃, h₄, h₅, h₆, h₇, h₈⟩ := hctx
+  constructor
+  · grind
+  · intro val hval
+    have ⟨array, harray⟩ := h₂ val (by grind)
+    exists array
+    simp only [Std.ExtHashSet.filter_empty] at harray ⊢
+    apply ValuePtr.DefUse.unchanged harray (ctx' := op.setAttributes ctx newAttrs hop) <;> grind
+  · intro blk hblk
+    have ⟨array, harray⟩ := h₃ blk (by grind)
+    exists array
+    simp only [Std.ExtHashSet.filter_empty] at harray ⊢
+    apply BlockPtr.DefUse.unchanged harray (ctx' := op.setAttributes ctx newAttrs hop) <;> grind
+  · intro blk hblk
+    have ⟨array, harray⟩ := h₄ blk (by grind)
+    exists array
+    apply BlockPtr.OpChain_unchanged harray (ctx' := op.setAttributes ctx newAttrs hop) <;> grind
+  · intro reg hreg
+    have ⟨array, harray⟩ := h₅ reg (by grind)
+    exists array
+    apply RegionPtr.blockChain_unchanged harray (ctx' := op.setAttributes ctx newAttrs hop) <;> grind
+  · intro op' hop'
+    have h_wf := h₆ op' (by grind)
+    apply OperationPtr.WellFormed_unchanged h_wf (ctx' := op.setAttributes ctx newAttrs hop) <;> grind
+  · intro blk hblk
+    have h_wf := h₇ blk (by grind)
+    apply BlockPtr.WellFormed_unchanged h_wf (ctx' := op.setAttributes ctx newAttrs hop) <;> grind
+  · intro reg hreg
+    have h_wf := h₈ reg (by grind)
+    apply RegionPtr.WellFormed_unchanged h_wf (ctx' := op.setAttributes ctx newAttrs hop) <;> grind
+
+end setAttributes
 
 theorem Rewriter.detachOperands.loop_wellFormed
     (wf : IRContext.WellFormed ctx missingOperands missingSuccessors)
@@ -403,16 +441,16 @@ theorem Rewriter.createEmptyOp_wellFormed  (hctx : IRContext.WellFormed ctx) :
       constructor
       case neg.region_parent =>
         intro region regionInBounds
-        apply Operation.WellFormed.region_parent.unchanged (ctx := ctx) <;> grind
+        apply OperationPtr.WellFormed.region_parent.unchanged (ctx := ctx) <;> grind
       all_goals grind
   case blocks =>
     intro bl hbl
     have := hctx.blocks bl (by grind)
-    apply Block.WellFormed_unchanged (ctx := ctx) <;> grind
+    apply BlockPtr.WellFormed_unchanged (ctx := ctx) <;> grind
   case regions =>
     intro reg hreg
     have := hctx.regions reg (by grind)
-    apply Region.WellFormed_unchanged (ctx := ctx) <;> try grind
+    apply RegionPtr.WellFormed_unchanged (ctx := ctx) <;> try grind
 
 theorem Rewriter.createOp_WellFormed
     (hctx : IRContext.WellFormed ctx) :

@@ -15,9 +15,9 @@ import Veir.Interpreter.Basic
 open Veir.Parser
 open Veir
 
-def parseOperation (filename : String) : ExceptT String IO (IRContext OpCode × OperationPtr) := do
+def parseOperation (filename : String) : ExceptT String IO (WfIRContext OpCode × OperationPtr) := do
   let fileContent ← IO.FS.readBinFile filename
-  let some (ctx, _) := IRContext.create OpCode
+  let some (ctx, _) := WfIRContext.create OpCode
     | throw "Failed to create IR context"
   match ParserState.fromInput fileContent with
   | .ok parser =>
@@ -38,7 +38,8 @@ def main (args : List String) : IO Unit := do
       match ctx.verify with
       | .ok _ =>
         match interpretModule ctx op (by sorry) (by sorry) with
-        | some results => IO.println s!"Program output: {results}"
+        | some (.ok results) => IO.println s!"Program output: {results}"
+        | some .ub => IO.println "Undefined behavior"
         | none => IO.eprintln "Error while interpreting module"
       | .error errMsg => IO.eprintln s!"Error verifying input program: {errMsg}"
     | .error errMsg =>

@@ -44,20 +44,20 @@ not `"aliasName"` — i.e. the printer specializes for Symbol-trait ops.
 VEIR's `AttrParser` doesn't handle the `@` lexeme as an attribute
 form at all, so parsing fails before we get to anything semantic.
 
-**How to apply**: any LLZK op declaring the `Symbol` trait (Include,
-Function.def, Struct.def, Poly.template, Global.def) requires at least
-a minimal *flat* `@name` attribute parser, even if no other op
-references the symbol. This is much smaller than full
-`SymbolRefAttr` / symbol-table semantics (no nested lookup, no
-resolution, no integrity check) — it's "parse and store a name path".
+**Status update 2026-05-15 (later same day)**: VEIR upstream merged
+PR #533 (`Add FlatSymbolRefAttr`) which adds exactly the minimal
+flat-`@name` parser the gotcha described — `parseOptionalFlatSymbolRefAttr`
+in `Veir/Parser/AttrParser.lean` and a `FlatSymbolRefAttr` case in
+`Attribute`. **Phase A.1 (Include) is therefore unblocked** after the
+upstream merge lands in this branch. The "Re-ordering implication"
+below is partially reverted: Include is back in scope for Phase A.
 
-**Re-ordering implication**: Phase A.1 (Include) has been deferred
-out of Phase A and into Phase B/C, where the minimal symbol parser
-lands. Phase A continues with String, Cast, RAM, Bool, Constrain.
-
-**Upstream-fix candidate**: a flat-symbol `Attribute` case (akin to
-`StringAttr` but tagged) and the corresponding `parseOptionalSymbolRef`,
-without any IR-level resolution. Keeps the Phase B design open.
+**How to apply going forward**: any LLZK op declaring the `Symbol`
+trait (Include, Function.def, Struct.def, Poly.template, Global.def)
+can now store its `sym_name` as a `FlatSymbolRefAttr` in its property
+dict. **Caveat**: there is still no `SymbolTable` trait, no symbol
+resolution (`SymbolUserOpInterface`), and no invariant that the name
+is unique within a scope. Those remain Phase B work.
 
 ---
 

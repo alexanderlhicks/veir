@@ -362,6 +362,16 @@ theorem BlockPtr.arguments_inBounds :
 
 grind_pattern BlockPtr.arguments_inBounds => (block.getArgument i), ctx.FieldsInBounds
 
+theorem BlockPtr.getArguments!_inBounds :
+    ctx.FieldsInBounds →
+    block.InBounds ctx →
+    blockArg ∈ block.getArguments! ctx →
+    blockArg.InBounds ctx := by
+  grind [getArguments!.mem_iff_exists_index]
+
+grind_pattern BlockPtr.getArguments!_inBounds => blockArg ∈ block.getArguments! ctx, ctx.FieldsInBounds
+
+
 end Block
 
 section Region
@@ -407,6 +417,14 @@ theorem ValuePtr.getFirstUse!_inBounds :
   cases value <;> grind
 
 grind_pattern ValuePtr.getFirstUse!_inBounds => (value.getFirstUse! ctx), ctx.FieldsInBounds
+
+theorem ValuePtr.getDefiningOp!_inBounds :
+    ctx.FieldsInBounds →
+    value.InBounds ctx →
+    (value.getDefiningOp! ctx).maybe OperationPtr.InBounds ctx := by
+  cases value <;> grind
+
+grind_pattern ValuePtr.getDefiningOp!_inBounds => (value.getDefiningOp! ctx), ctx.FieldsInBounds
 
 end ValuePtr
 

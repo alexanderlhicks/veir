@@ -82,10 +82,15 @@ def parseRegisterType (errorMsg : String := "register type expected") : AttrPars
 
 /--
   Parse an integer attribute, if present.
-  An integer attribute has the form `value : type`, where `value` is an integer
-  literal and `type` is an integer type.
+  An integer attribute has the form `false`, `true` or `value : type`, where `value` is an
+  integer literal and `type` is an integer type.
 -/
 def parseOptionalIntegerAttr : AttrParserM (Option IntegerAttr) := do
+  if (← parseOptionalKeyword "false".toByteArray) then
+    return some (IntegerAttr.mk 0 (IntegerType.mk 1))
+  if (← parseOptionalKeyword "true".toByteArray) then
+    return some (IntegerAttr.mk 1 (IntegerType.mk 1))
+
   let some value ← parseOptionalInteger false true
     | return none
   parsePunctuation ":"
@@ -155,10 +160,10 @@ def matchingBracket! (kind : TokenKind) : TokenKind :=
 /--
   Parse the body of an unregistered attribute, which is a balanced
   string for `<`, `(`, `[`, `{`, and may contain string literals.
-  The first `<` is expected to have already been consumed when this function is called.
-  The ending `>` is not consumed by this function.
+  The opening token is expected to have already been consumed when this function is called.
+  The ending token (by default `>`) is not consumed by this function.
 -/
-private def parseUnregisteredAttrBody (startPos : Option Nat := none) : AttrParserM String := do
+private def parseUnregisteredAttrBody (endToken : TokenKind := .greater) (startPos : Option Nat := none) : AttrParserM String := do
   let startPos := startPos.getD (← peekToken).slice.start
 
   /- This stack corresponds to the brackets that are still open. -/
@@ -182,7 +187,7 @@ private def parseUnregisteredAttrBody (startPos : Option Nat := none) : AttrPars
       /- If we don't have any open bracket, either we end the parsing if
          the bracket is the last `>`, or we raise an error. -/
       if bracketStack.isEmpty then
-        if token.kind == .greater then
+        if token.kind == endToken then
           endPos := token.slice.start
           break
         throw s!"unexpected closing bracket {closingName} in attribute body"
@@ -237,6 +242,26 @@ partial def parseOptionalDialectAttr : AttrParserM (Option Attribute) := do
   parsePunctuation ">"
   let value := (Slice.mk startPos endPos).of (← getThe ParserState).input
   return some (UnregisteredAttr.mk (String.fromUTF8! value) false)
+
+/--
+  Parse a flat symbol reference attribute, if present.
+  Its syntax is `@ident` or `@"string"`.
+-/
+def parseOptionalFlatSymbolRefAttr : AttrParserM (Option FlatSymbolRefAttr) := do
+  let some name ← parseOptionalPrefixedKeyword .atIdent | return none
+  return some (FlatSymbolRefAttr.mk ("@" ++ String.fromUTF8! name))
+
+/--
+  Parse a location attribute, if present.
+  A location attribute has the form `loc(body)`.
+-/
+partial def parseOptionalLocationAttr : AttrParserM (Option Attribute) := do
+  if !(← parseOptionalKeyword "loc".toByteArray) then
+    return none
+  parsePunctuation "("
+  let body ← parseUnregisteredAttrBody .rParen
+  parsePunctuation ")"
+  return some (LocationAttr.mk body)
 
 /--
   Parse an LLVM pointer type `!llvm.ptr`, if present.
@@ -324,6 +349,49 @@ def parseOptionalFeltType : AttrParserM (Option TypeAttr) := do
     return some (FeltType.mk (some name.toByteArray))
   return some (FeltType.mk none)
 
+/--
+  Parse CIRCT's HW dialect's `ModulePort::Direction` type.
+  Its syntax is `(input|output|inout)`.
+-/
+def parseOptionalHWModulePortDirection : AttrParserM (Option HW.ModulePort.Direction) := do
+  if (← parseOptionalKeyword "input".toByteArray) then
+    return some .input
+  if (← parseOptionalKeyword "output".toByteArray) then
+    return some .output
+  if (← parseOptionalKeyword "inout".toByteArray) then
+    return some .inout
+  return none
+
+/--
+  Parse CIRCT's HW dialect's `ModulePort` type.
+  Its syntax is `(input|output|inout) name : iN`.
+-/
+def parseOptionalHWModulePort : AttrParserM (Option HW.ModulePort) := do
+  let .some dir ← parseOptionalHWModulePortDirection | return none
+  let name := String.fromUTF8! (← parseIdentifier)
+  parsePunctuation ":"
+  let type ← parseIntegerType
+  return some { dir, name, type }
+
+def parseHWModulePort (errorMsg : String := "module port expected") : AttrParserM (HW.ModulePort) := do
+  match ← parseOptionalHWModulePort with
+  | some ty => return ty
+  | none => throw errorMsg
+
+/--
+  Parse CIRCT's HW dialect's `ModuleType` type.
+  Its syntax is `!hw.modty<ports>` where `ports` is a comma delimited list of `ModulePort`s.
+-/
+def parseOptionalHWModuleType : AttrParserM (Option HW.ModuleType) := do
+  let token ← peekToken
+  let .exclamationIdent := token.kind | return none
+  let input := (← getThe ParserState).input
+  let typeName := { token.slice with start := token.slice.start + 1 }.of input
+  if typeName ≠ "hw.modty".toByteArray then return none
+  let _ ← consumeToken
+  let ports ← parseDelimitedList .angle parseHWModulePort
+  return some { ports }
+
 mutual
 
 /--
@@ -369,6 +437,8 @@ partial def parseOptionalType : AttrParserM (Option TypeAttr) := do
     return some llvmPointerType
   if let some cudaTilePointerType := ← parseOptionalCudaTilePointerType then
     return some cudaTilePointerType
+  if let some hwModuleType ← parseOptionalHWModuleType then
+    return some hwModuleType
   if let some dialectType ← parseOptionalDialectType then
     return some dialectType
   else if let some functionType := ← parseOptionalFunctionType then
@@ -436,6 +506,8 @@ partial def parseOptionalDictionaryAttr : AttrParserM (Option DictionaryAttr) :=
 partial def parseOptionalAttribute : AttrParserM (Option Attribute) := do
   if let some dialectAttr ← parseOptionalDialectAttr then
     return some dialectAttr
+  else if let some locationAttr ← parseOptionalLocationAttr then
+    return some locationAttr
   else if let some type ← parseOptionalType then
     return some type.val
   else if let some integerAttr ← parseOptionalIntegerAttr then
@@ -450,6 +522,8 @@ partial def parseOptionalAttribute : AttrParserM (Option Attribute) := do
     return some arrayAttr
   else if let some dictAttr ← parseOptionalDictionaryAttr then
     return some dictAttr
+  else if let some symRefAttr ← parseOptionalFlatSymbolRefAttr then
+    return some symRefAttr
   else
     return none
 

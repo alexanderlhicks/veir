@@ -1,6 +1,15 @@
 # Symbol-table architecture spike
 
-**Status**: 🚧 open. Plan phase B (gates Tier 2 / Phase C+D).
+**Status**: 🚧 open, but **partially mitigated upstream**. Plan phase B
+(gates Tier 2 / Phase C+D).
+
+**2026-05-15 update**: VEIR upstream merged PR #533 (`Add
+FlatSymbolRefAttr`), which delivers the flat `@name` parser sketched
+below as the "minimal" Hybrid Recommendation. That removes the
+question for the *flat* case but leaves the harder questions open:
+nested `@A::@B` paths, `SymbolTable`-trait semantics, lookup /
+resolution, and whether well-formedness should include symbol
+integrity. This file now covers those remaining questions.
 
 This is a placeholder + framing doc. The actual design work is the
 next concrete action item; this document records the question, the

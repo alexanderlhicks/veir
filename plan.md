@@ -50,7 +50,7 @@ generalizes. No new VEIR infrastructure beyond what Felt established.
 
 In dependency order:
 
-- [ ] **A.1 Include** — symbol *producer* only; **revised**: actually requires flat `@symbol` parsing (Gotcha 3 — see porting-notes), so blocked on minimal `SymbolRefAttr` parser. Deferred to Phase B/C.
+- [ ] **A.1 Include** — symbol *producer*. Originally deferred (Gotcha 3); **re-unblocked** by upstream PR #533 (FlatSymbolRefAttr). Ready to port once the merge lands.
 - [x] **A.2 String** — single op, single param-less type. Done 2026-05-15: 213 build / 265 lit / clean test.
 - [ ] **A.3 Cast** — Felt-dependent, no new infra (1× Felt)
 - [ ] **A.4 RAM** — Felt-dependent, no new infra (0.5× Felt)

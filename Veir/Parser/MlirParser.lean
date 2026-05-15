@@ -1,8 +1,12 @@
 import Veir.Parser.Parser
 import Veir.Parser.AttrParser
+import Veir.Parser.DecidableInBounds
 import Veir.IR.Basic
 import Veir.Rewriter.InsertPoint
 import Veir.Rewriter.Basic
+import Veir.Rewriter.GetSet
+import Veir.Rewriter.WellFormed
+import Veir.Rewriter.WfRewriter
 import Veir.Properties
 import Veir.GlobalOpInfo
 
@@ -16,9 +20,9 @@ variable {ctx : IRContext OpCode}
 
 structure MlirParserState where
   /-- The current IR context. -/
-  ctx : IRContext OpCode
-  /-- The values that have been defined at that point in the parser. -/
-  values : Std.HashMap ByteArray ValuePtr
+  ctx : WfIRContext OpCode
+  /-- The values that have been defined for a given name at that point in the parser. -/
+  values : Std.HashMap ByteArray (Array ValuePtr)
   /--
     The blocks that have been already parsed.
     The Bool value indicates whether the block has already been parsed
@@ -27,7 +31,7 @@ structure MlirParserState where
   blocks : Std.HashMap ByteArray (BlockPtr × Bool)
   deriving Inhabited
 
-def MlirParserState.fromContext (ctx : IRContext OpCode) : MlirParserState :=
+def MlirParserState.fromContext (ctx : WfIRContext OpCode) : MlirParserState :=
   {ctx := ctx, values := Std.HashMap.emptyWithCapacity 128, blocks := Std.HashMap.emptyWithCapacity 1}
 
 abbrev MlirParserM := StateT MlirParserState (EStateM String ParserState)
@@ -55,13 +59,13 @@ def MlirParserM.run' (self : MlirParserM α)
 /--
   Get the current IR context that is stored in the parser state.
 -/
-def getContext : MlirParserM (IRContext OpCode) := do
+def getContext : MlirParserM (WfIRContext OpCode) := do
   return (← get).ctx
 
 /--
-  Get a value that has previously been parsed given its name.
+  Get the array of values associated with a previously parsed name.
 -/
-def getValue? (name : ByteArray) : MlirParserM (Option ValuePtr) := do
+def getValues? (name : ByteArray) : MlirParserM (Option (Array ValuePtr)) := do
   return (← get).values[name]?
 
 /--
@@ -71,25 +75,32 @@ def getInput : MlirParserM ByteArray := do
   return (← getThe ParserState).input
 
 /--
-  Register a parsed value with the given name.
+  Register an array of parsed values with the given name.
   This is used to keep track of values that have been defined during parsing.
 -/
-def registerValueDef (name : ByteArray) (value : ValuePtr) : MlirParserM Unit := do
-  modify fun s => { s with values := s.values.insert name value }
+def registerValueDefs (name : ByteArray) (values : Array ValuePtr) : MlirParserM Unit := do
+  modify fun s => { s with values := s.values.insert name values }
+
+/--
+  Register a single value with the given name.
+  This is used to keep track of values that have been defined during parsing.
+-/
+def registerValueDef (name : ByteArray) (value : ValuePtr) : MlirParserM Unit :=
+  registerValueDefs name #[value]
 
 /--
   Set the current IR context.
   This should be called whenever any modifications have been made to the context
   outside of the parser monad.
 -/
-def setContext (ctx : IRContext OpCode) : MlirParserM Unit := do
+def setContext (ctx : WfIRContext OpCode) : MlirParserM Unit := do
   modify fun s => {s with ctx := ctx}
 
 /--
   Modifies the current IR context.
 -/
-def modifyContext (f : IRContext OpCode → IRContext OpCode) : MlirParserM Unit := do
-  modify fun s => {s with ctx :=  f s.ctx}
+def modifyContext (f : WfIRContext OpCode → WfIRContext OpCode) : MlirParserM Unit := do
+  modify fun s => {s with ctx := f s.ctx}
 
 /--
   Modifies the current IR context.
@@ -97,7 +108,7 @@ def modifyContext (f : IRContext OpCode → IRContext OpCode) : MlirParserM Unit
   This function should be used instead of modifying the context with
   `get`/`getContext` and `set`/`setContext` in order to preserve linearity.
 -/
-def modifyContextM' (f : IRContext OpCode → MlirParserM (α × IRContext OpCode)) : MlirParserM α := do
+def modifyContextM' (f : WfIRContext OpCode → MlirParserM (α × WfIRContext OpCode)) : MlirParserM α := do
   let ctx ← getContext
   -- This `setContext` is required to preserve the linearity of the state
   setContext default
@@ -111,10 +122,9 @@ def modifyContextM' (f : IRContext OpCode → MlirParserM (α × IRContext OpCod
   This function should be used instead of modifying the context with
   `get`/`getContext` and `set`/`setContext` in order to preserve linearity.
 -/
-def modifyContextM (f : IRContext OpCode → MlirParserM (IRContext OpCode)) : MlirParserM Unit :=
+def modifyContextM (f : WfIRContext OpCode → MlirParserM (WfIRContext OpCode)) : MlirParserM Unit :=
   modifyContextM' (fun ctx => do pure ((), ← f ctx))
 
-set_option warn.sorry false in
 /--
   Create a block at the given insert point and register its name in the parsing context.
   If a block was already declared with the given name, use that block instead, and
@@ -128,9 +138,11 @@ def defineBlock (name : ByteArray) (ip : BlockInsertPoint) : MlirParserM BlockPt
   | some (block, false) => -- Block of this name was forward declared.
     /- Insert the block at the given location. -/
     modifyContextM fun ctx => do
-      let some ctx := Rewriter.insertBlock? ctx block ip (by sorry) (by sorry) (by sorry)
-        | throw "internal error: failed to insert block"
-      pure ctx
+      let ⟨hip⟩ ← liftExcept (checkBlockInsertPointInBounds ip ctx.raw)
+      let ⟨hblock⟩ ← liftExcept (checkBlockInBounds block ctx.raw)
+      match hctx' : Rewriter.insertBlock? ctx block ip hblock hip with
+      | none => throw "internal error: failed to insert block"
+      | some ctx' => pure ⟨ctx', by grind [Rewriter.insertBlock?_WellFormed]⟩
     /- Notify the parsing context that the block is defined. -/
     modifyThe MlirParserState (fun state =>
     {state with
@@ -140,15 +152,15 @@ def defineBlock (name : ByteArray) (ip : BlockInsertPoint) : MlirParserM BlockPt
   | none => -- Block has not yet been declared or referenced.
     /- Create the block. -/
     let block ← modifyContextM' fun ctx => do
-      let some (ctx, block) := Rewriter.createBlock ctx ip (by sorry) (by sorry)
-        | throw "internal error: failed to create block"
-      pure (block, ctx)
+      let ⟨hip⟩ ← liftExcept (checkBlockInsertPointInBounds ip ctx.raw)
+      match hctx' : Rewriter.createBlock ctx #[] ip (by grind) (by grind) with
+      | none => throw "internal error: failed to create block"
+      | some (ctx', block) => pure ⟨block, ⟨ctx', by grind [Rewriter.createBlock_WellFormed]⟩⟩
     /- Notify the parsing context that the block is defined. -/
     modifyThe MlirParserState fun s =>
     {s with blocks := s.blocks.insert name (block, true)}
     return block
 
-set_option warn.sorry false in
 /--
   Forward declare a block with the given name.
   If the block was already forward declared or defined, return the existing block.
@@ -162,27 +174,38 @@ def defineBlockUse (name : ByteArray) : MlirParserM BlockPtr := do
   | none => -- Block not yet encountered
     /- Create the block. -/
     let block ← modifyContextM' fun ctx => do
-      let some (ctx, block) := Rewriter.createBlock ctx none (by sorry) (by sorry)
-        | throw "internal error: failed to create block"
-      pure (block, ctx)
+      match hctx' : Rewriter.createBlock ctx #[] none (by grind) Option.maybe_none with
+      | none => throw "internal error: failed to create block"
+      | some (ctx', block) => pure ⟨block, ⟨ctx', by grind [Rewriter.createBlock_WellFormed]⟩⟩
     /- Notify the parsing context that the block is forward declared. -/
     modifyThe MlirParserState fun s =>
       {s with blocks := s.blocks.insert name (block, false)}
     return block
 
 /--
-  Parse an operation result.
+  Parse an operation result and the number of values it defines.
+  This corresponds to the syntax `%name` and `%name:numberOfResults`.
 -/
-def parseOpResult : MlirParserM ByteArray := do
+def parseOpResult : MlirParserM (ByteArray × Nat) := do
   let nameToken ← parseToken .percentIdent "operation result expected"
   let slice := { nameToken.slice with start := nameToken.slice.start + 1 } -- skip % character
-  return slice.of (← getInput)
+  let name := slice.of (← getInput)
+
+  /- If the next token is ':', we parse the expected result count, otherwise we return the name. -/
+  if !(← parseOptionalToken .colon).isSome then
+    return (name, 1)
+
+  let count := (← parseInteger false false).toNat
+  if count ≤ 1 then
+    throw "expected named operation to have at least 1 result"
+
+  return (name, count)
 
 /--
   Parse the results before an operation definition,
   either as a list of values followed by '=', or nothing.
 -/
-def parseOpResults : MlirParserM (Array ByteArray) := do
+def parseOpResults : MlirParserM (Array (ByteArray × Nat)) := do
   let .percentIdent := (← peekToken).kind | return #[]
   let results ← parseList parseOpResult
   parsePunctuation "=" "'=' expected after operation results"
@@ -193,16 +216,50 @@ def parseOpResults : MlirParserM (Array ByteArray) := do
   This is used during parsing to allow parsing operands before their types.
   Once the operation type is known, `resolveOperand` can be used to create an SSA value and
   check that the type matches with previous uses.
+
+  `index` is used for the `%name#index` syntax to refer to an indexed result
+  when multiple are defined for the same value.
 -/
 structure UnresolvedOperand where
   name : ByteArray
+  index : Option Nat
+
+/--
+  Get the name of an UnresolvedOperand as a String.
+-/
+def UnresolvedOperand.nameString (operand : UnresolvedOperand) : String :=
+  String.fromUTF8! operand.name
+
+/--
+  Get the result index of an UnresolvedOperand. If one was not specified explicitly, this
+  defaults to 0.
+-/
+def UnresolvedOperand.indexD (operand : UnresolvedOperand) : Nat :=
+  operand.index.getD 0
+
+instance : ToString UnresolvedOperand where
+  toString operand :=
+    match operand.index with
+    | none => s!"%{operand.nameString}"
+    | some n => s!"%{operand.nameString}#{n}"
 
 /--
   Parse an operation operand.
+  This has the syntax `%name` or `%name#resultCount`.
 -/
 def parseOperand : MlirParserM UnresolvedOperand := do
   let nameToken ← parseToken .percentIdent "operand expected"
-  return UnresolvedOperand.mk ({ nameToken.slice with start := nameToken.slice.start + 1 }.of (← getInput))
+  let name : ByteArray := { nameToken.slice with start := nameToken.slice.start + 1 }.of (← getInput)
+
+  /- If no result number is specified, return without one. -/
+  let some resultCount ← parseOptionalToken .hashIdent
+    | return UnresolvedOperand.mk name none
+
+  /- Parse the result count as a Nat. -/
+  let resultCount := { resultCount.slice with start := resultCount.slice.start + 1 }.of (← getInput) -- skip # character
+  let some resultCount := String.fromUTF8? resultCount >>= String.toNat?
+    | throw "invalid SSA value result number"
+  return UnresolvedOperand.mk name resultCount
 
 /--
   Parse a list of operation operands delimited by parentheses.
@@ -231,10 +288,12 @@ def parseBlockOperands : MlirParserM (Array BlockPtr) := do
   Throw an error if the value is not defined or if the type does not match.
 -/
 def resolveOperand (operand : UnresolvedOperand) (expectedType : TypeAttr) : MlirParserM ValuePtr := do
-  let some value := (← getValue? operand.name) | throw s!"use of undefined value %{String.fromUTF8! operand.name}"
-  let parsedType := value.getType! (← getContext)
+  let some values := (← getValues? operand.name) | throw s!"use of undefined value %{operand.nameString}"
+  let some value := values[operand.indexD]? | throw s!"invalid result index {operand.indexD} for %{operand.nameString}"
+  let ⟨ctx, _⟩ ← getContext
+  let parsedType := value.getType! ctx
   if parsedType ≠ expectedType then
-    throw s!"type mismatch for value %{String.fromUTF8! operand.name}: expected {expectedType}, got {parsedType}"
+    throw s!"type mismatch for value {operand}: expected {expectedType}, got {parsedType}"
   return value
 
 /--
@@ -313,7 +372,6 @@ def parseOpAttributes : MlirParserM DictionaryAttr := do
     | some attrs => return DictionaryAttr.fromArray attrs
   | .error err => throw err
 
-set_option warn.sorry false in
 /--
   Parse a block label, if present, and create and insert the block at the given insert point.
 -/
@@ -329,8 +387,11 @@ def parseOptionalBlockLabel (ip : BlockInsertPoint) : MlirParserM (Option BlockP
   /- Create the block or get it if it was forward declared. -/
   let block ← defineBlock name ip
   /- Insert block arguments in the block. -/
-  let blockArguments := arguments.mapIdx (fun index (_, type) => BlockArgument.mk (ValueImpl.mk type none) index () block)
-  modifyContext fun ctx => block.setArguments ctx blockArguments (by sorry)
+  modifyContextM fun ctx => do
+    let argTypes := arguments.map (·.2)
+    let ⟨h_block_InBounds⟩ ← liftExcept (checkBlockInBounds block ctx.raw)
+    let ⟨h_block_NoArgs⟩ ← liftExcept (checkBlockHasNoArgs block ctx.raw)
+    pure (WfRewriter.setBlockArguments ctx block argTypes h_block_InBounds (by grind [BlockPtr.getArguments!.mem_iff_exists_index]))
   /- Register the block argument names in the parser state. -/
   for ((argName, argType), index) in arguments.zipIdx do
     registerValueDef argName (ValuePtr.blockArgument {block := block, index := index})
@@ -349,7 +410,6 @@ def parseEntryBlockLabel (ip : BlockInsertPoint) : MlirParserM BlockPtr := do
     let block ← defineBlock ByteArray.empty ip
     return block
 
-set_option warn.sorry false in
 mutual
 
 /--
@@ -372,34 +432,49 @@ partial def parseOptionalOp (ip : Option InsertPoint) : MlirParserM (Option Oper
   let opId := OpCode.fromName opName.toByteArray
 
   let properties ← parseOpProperties opId
+  /- For `builtin.unregistered`, record the original op name in the properties so it can be
+     printed back out. The properties dictionary itself has already been populated by
+     `Properties.fromAttrDict` (see `UnregisteredProperties.fromAttrDict`). -/
+  let properties : propertiesOf opId := match opId, properties with
+    | .builtin .unregistered, props => { props with opName := opName.toByteArray }
+    | _, props => props
   let regions ← parseOpRegions
   let attrs ← parseOpAttributes
   let (inputTypes, outputTypes) ← parseOperationType
 
+  /- Results can have multiple parts so sum the sizes. -/
+  let numResults := results.foldl (· + ·.snd) 0
+
   /- Check that the number of results matches with the operation type. -/
-  if outputTypes.size ≠ results.size then
-    throw s!"operation '{opName}' declares {outputTypes.size} result types, but {results.size} result names were provided"
+  if outputTypes.size ≠ numResults then
+    throw s!"operation '{opName}' declares {outputTypes.size} result types, but {numResults} result values were provided"
 
   /- Check that the number and types of operands matches with the operation type. -/
   if inputTypes.size ≠ operands.size then
     throw s!"operation '{opName}' declares {inputTypes.size} operand types, but {operands.size} operands were provided"
   let operands ← operands.zip inputTypes |>.mapM (fun (operand, type) => resolveOperand operand type)
 
-  /- Set context in monad to default to preserve linearity whilst modifying -/
+  let op ← modifyContextM' fun ctx => do
+    let ⟨hoper⟩ ← liftExcept (checkAllValuesInBounds operands ctx.raw)
+    let ⟨hblockOperands⟩ ← liftExcept (checkAllBlocksInBounds blockOperands ctx.raw)
+    let ⟨hregions⟩ ← liftExcept (checkAllRegionsInBounds regions ctx.raw)
+    let ⟨hins⟩ ← liftExcept (checkMaybeInsertPointInBounds ip ctx.raw)
+    match hctx' : Rewriter.createOp ctx opId outputTypes operands blockOperands regions properties ip hoper hblockOperands hregions hins with
+    | none => throw "internal error: failed to create operation"
+    | some (ctx', op) =>
+      let ⟨hop⟩ ← liftExcept (checkOpInBounds op ctx')
+      let ctx'' := op.setAttributes ctx' attrs hop
+      /- Update the parser context. -/
+      pure ⟨op, ⟨ctx'', by grind [Rewriter.createOp_WellFormed, OperationPtr.setAttributes_WellFormed]⟩⟩
+
   let ctx ← getContext
-  setContext Inhabited.default
 
-  let some (ctx, op) := Rewriter.createOp ctx opId outputTypes operands blockOperands regions properties ip (by sorry) (by sorry) (by sorry) (by sorry) (by sorry)
-      | throw "internal error: failed to create operation"
-  let ctx := op.setAttributes! ctx attrs
-
-  /- Update the parser context. -/
-  setContext ctx
-
-  /- Register the new operation results in the parser state. -/
-  for index in 0...(op.getNumResults! ctx) do
-    let resultValue := op.getResult index
-    registerValueDef results[index]! resultValue
+  /- Register the values for each result name. -/
+  let mut index := 0
+  for (name, count) in results do
+    let values := .ofFn <| fun (i : Fin count) => op.getResult (index + i)
+    registerValueDefs name values
+    index := index + count
   return op
 
 /--
@@ -420,9 +495,9 @@ partial def parseRegion : MlirParserM RegionPtr := do
   /- Create the region and parse the open delimiter. -/
   parsePunctuation "{"
   let region := ← modifyContextM' fun ctx => do
-    let some (ctx, region) := Rewriter.createRegion ctx
-        | throw "internal error: failed to create region"
-    pure (region, ctx)
+    match hctx' : Rewriter.createRegion ctx with
+    | none => throw "internal error: failed to create region"
+    | some (ctx', region) => pure (region, ⟨ctx', by grind [IRContext.wellFormed_Rewriter_createRegion]⟩)
 
   /- Case where there are no blocks inside the region. -/
   if (← parseOptionalPunctuation "}") then

@@ -24,7 +24,7 @@ document for the protocol.
 | LLZK dialect | Status | Caveats |
 |---|---|---|
 | `felt` | ✅ Supported | `felt.const` value stored as `IntegerAttr`, not structured `#felt.const<v>`. Printed form is `<{"value" = 42 : i256}>`, not LLZK's `<{"value" = #felt.const<42>}>`. Trait semantics (`NotFieldNative`, `Commutative`, `AllowConstraintAttr`, `AllowWitnessAttr`) **not encoded**. Folder/canonicalizer **not implemented**. Custom assembly format (`%0 = felt.add %a, %b`) **not supported** — generic format only. |
-| `include` | ❌ Unsupported | Planned Phase A.1 (Tier 1). |
+| `include` | ❌ Unsupported | Planned Phase A.1. **Unblocked by upstream**: `FlatSymbolRefAttr` (PR #533, merged upstream 2026-05) provides `@name` parsing — Include's `sym_name` attribute now has a route. |
 | `string` | ✅ Supported | Round-trips through `veir-opt`. One op (`string.new`), one type (`!string.type`). Custom assembly format (`%0 = string.new "x"`) **not supported** — generic form only. `Pure`, `ConstantLike`, `hasFolder` traits **not encoded**. |
 | `cast` | ❌ Unsupported | Planned Phase A.3. Depends on Felt. `InferTypeOpInterface` semantics will not be encoded. |
 | `ram` | ❌ Unsupported | Planned Phase A.4. Memory-effect traits (`MemRead`, `MemWrite`) **will not be encoded** — round-trip only. |
@@ -63,7 +63,8 @@ document for the protocol.
 | `#felt.const<value>` (structured) | ❌ | **Workaround in use:** `felt.const`'s value is stored as `IntegerAttr` instead. Mirrors VEIR's `arith.constant` precedent. Lossy w.r.t. the textual form (prints differently) but preserves the IR-level value. |
 | `#field<name, prime>` (`LLZK_FieldSpecAttr`) | ❌ | Field modulus not encoded anywhere. Bigger semantic gap than the textual one. |
 | `#bool.cmp<eq|ne|lt|le|gt|ge>` (enum) | ❌ | Bool `cmp` predicate. Planned C.4. Workaround if deferred: store as `IntegerAttr` (0..5). |
-| `SymbolRefAttr` (`@name`, `@outer::inner`) | ❌ | Planned C.1. **No per-dialect attribute parser exists in VEIR today.** Unknown `#dialect.name<...>` falls through to `UnregisteredAttr` whose `value` is the raw textual slice. |
+| `SymbolRefAttr` (flat: `@name`) | ✅ | Landed upstream PR #533 as `FlatSymbolRefAttr`. Stored as the raw text including the `@`. Parsed via `parseOptionalFlatSymbolRefAttr`. |
+| `SymbolRefAttr` (nested: `@outer::@inner`) | ❌ | Not yet representable. Needed for Struct/Polymorphic nested member references. Phase B (re-scoped). |
 | `AffineMapAttr` (`affine_map<(i,j) -> (i+j)>`) | ❌ | Planned C.2. Black-box (textual) representation recommended initially. |
 | `DenseI32ArrayAttr` | ✅ (`DenseArrayAttr`) | — |
 | `StrArrayAttr` | ❌ | Used by POD field names. Phase D.2. |
@@ -75,9 +76,10 @@ document for the protocol.
 
 | Feature | Status | Caveats |
 |---|---|---|
-| `SymbolRefAttr` as an `Attribute` case | ❌ | Phase C.1. |
-| `Symbol` trait (op declares a name) | ❌ | Phase B (design). |
-| `SymbolUserOpInterface` (op resolves a symbol) | ❌ | Phase B (design). |
+| `FlatSymbolRefAttr` (`@name`) as an `Attribute` case | ✅ | Landed upstream PR #533. |
+| Nested `SymbolRefAttr` (`@outer::@inner`) | ❌ | Phase B / Phase C extension. |
+| `Symbol` trait (op declares a name) | ⚠️ | The trait is not encoded, but operationally an op can store a `FlatSymbolRefAttr` in its property dict and that round-trips. No invariant that the name is unique within a scope. |
+| `SymbolUserOpInterface` (op resolves a symbol) | ❌ | No lookup. Phase B (design). |
 | `SymbolTable` trait (parent op contains symbols) | ❌ | Phase B (design). May require structural extension to verified IR. |
 | `LLZKSymbolTable` (custom LLZK variant) | ❌ | Phase G (Polymorphic, Struct). |
 | Nested symbol lookup (`@A::@B`) | ❌ | Phase C.1 parser; semantic resolution gated on Phase B design. |

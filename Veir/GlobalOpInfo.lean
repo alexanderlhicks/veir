@@ -8,6 +8,7 @@ public import Veir.Dialects.Cf.OpInfo
 public import Veir.Dialects.Comb.OpInfo
 public import Veir.Dialects.LLZK.Felt.OpInfo
 public import Veir.Dialects.LLZK.String.OpInfo
+public import Veir.Dialects.HW.OpInfo
 
 namespace Veir
 
@@ -28,6 +29,8 @@ match opCode with
 | .comb op => Comb.propertiesOf op
 | .felt op => Felt.propertiesOf op
 | .string op => String_.propertiesOf op
+| .hw op => HW.propertiesOf op
+| .builtin .unregistered => UnregisteredProperties
 | _ => Unit
 
 instance : HasDialectOpInfo OpCode where
@@ -91,10 +94,12 @@ def Properties.fromAttrDict (opCode : OpCode) (attrDict : Std.HashMap ByteArray 
     case bexti => exact (RISCVImmediateProperties.fromAttrDict attrDict)
     case binvi => exact (RISCVImmediateProperties.fromAttrDict attrDict)
     case bseti => exact (RISCVImmediateProperties.fromAttrDict attrDict)
+    case ld => exact (RISCVImmediateProperties.fromAttrDict attrDict)
+    case sd => exact (RISCVImmediateProperties.fromAttrDict attrDict)
     all_goals exact (Except.ok ())
   case llvm op =>
     cases op
-    case constant => exact (LLVMConstantProperties.fromAttrDict attrDict)
+    case mlir__constant => exact (LLVMConstantProperties.fromAttrDict attrDict)
     case add => exact (NswNuwProperties.fromAttrDict attrDict)
     case sub => exact (NswNuwProperties.fromAttrDict attrDict)
     case mul => exact (NswNuwProperties.fromAttrDict attrDict)
@@ -111,6 +116,7 @@ def Properties.fromAttrDict (opCode : OpCode) (attrDict : Std.HashMap ByteArray 
     case alloca => exact (AllocaProperties.fromAttrDict attrDict)
     case load => exact (LoadProperties.fromAttrDict attrDict)
     case store => exact (StoreProperties.fromAttrDict attrDict)
+    case getelementptr => exact (GetelementptrProperties.fromAttrDict attrDict)
     all_goals exact (Except.ok ())
   case func =>
     all_goals exact (Except.ok ())
@@ -118,7 +124,9 @@ def Properties.fromAttrDict (opCode : OpCode) (attrDict : Std.HashMap ByteArray 
     cases op
     case cond_br => exact (CondBrProperties.fromAttrDict attrDict)
     all_goals exact (Except.ok ())
-  case builtin =>
+  case builtin op =>
+    cases op
+    case unregistered => exact (UnregisteredProperties.fromAttrDict attrDict)
     all_goals exact (Except.ok ())
   case arith op =>
     cases op
@@ -140,6 +148,11 @@ def Properties.fromAttrDict (opCode : OpCode) (attrDict : Std.HashMap ByteArray 
     case extract => exact (CombExtractProperties.fromAttrDict attrDict)
     case icmp => exact (CombIcmpProperties.fromAttrDict attrDict)
     all_goals exact (Except.ok ())
+  case hw op =>
+    cases op
+    case constant => exact (HWConstantProperties.fromAttrDict attrDict)
+    case module => exact (HWModuleProperties.fromAttrDict attrDict)
+    all_goals exact (Except.ok ())
 
 /--
   Converts the properties of an operation into a dictionary of attributes.
@@ -149,7 +162,7 @@ def Properties.toAttrDict (opCode : OpCode) (props : propertiesOf opCode) :
   match opCode with
   | .arith .constant =>
     (Std.HashMap.emptyWithCapacity 2).insert "value".toUTF8 (Attribute.integerAttr props.value)
-  | .llvm .constant =>
+  | .llvm .mlir__constant =>
     (Std.HashMap.emptyWithCapacity 2).insert "value".toUTF8 (Attribute.integerAttr props.value)
   | .felt .const =>
     (Std.HashMap.emptyWithCapacity 2).insert "value".toUTF8 (Attribute.integerAttr props.value)
@@ -187,7 +200,7 @@ def Properties.toAttrDict (opCode : OpCode) (props : propertiesOf opCode) :
   | .riscv .li  | .riscv .lui | .riscv .auipc | .riscv .andi | .riscv .ori | .riscv .xori
   | .riscv .addi | .riscv .slti | .riscv .sltiu | .riscv .addiw | .riscv .slli | .riscv .srli | .riscv .srai
   | .riscv .slliw | .riscv .srliw | .riscv .sraiw | .riscv .rori | .riscv .roriw | .riscv .slliuw
-  | .riscv .bclri | .riscv .bexti | .riscv .binvi | .riscv .bseti | .mod_arith .constant =>
+  | .riscv .bclri | .riscv .bexti | .riscv .binvi | .riscv .bseti | .riscv .ld | .riscv .sd | .mod_arith .constant =>
     (Std.HashMap.emptyWithCapacity 2).insert "value".toUTF8 (Attribute.integerAttr props.value)
   | .cf .cond_br =>
     let dict := (Std.HashMap.emptyWithCapacity 2).insert "branch_weights".toUTF8 (.denseArrayAttr props.branch_weights)
@@ -233,9 +246,26 @@ def Properties.toAttrDict (opCode : OpCode) (props : propertiesOf opCode) :
     dict := dict.insert "noalias_scopes".toUTF8 (.arrayAttr props.noalias_scopes)
     dict := dict.insert "tbaa".toUTF8 (.arrayAttr props.tbaa)
     dict
+  | .llvm .getelementptr => Id.run do
+    let mut dict := Std.HashMap.emptyWithCapacity 3
+    dict := dict.insert "rawConstantIndices".toUTF8 (Attribute.denseArrayAttr props.rawConstantIndices)
+    dict := dict.insert "elem_type".toUTF8 props.elem_type
+    dict := dict.insert "noWrapFlags".toUTF8 (.integerAttr props.noWrapFlags)
+    dict
   | .comb .extract =>
     (Std.HashMap.emptyWithCapacity 1).insert "lowBit".toUTF8 (Attribute.integerAttr props.lowBit)
   | .comb .icmp =>
     (Std.HashMap.emptyWithCapacity 1).insert "predicate".toUTF8 (Attribute.integerAttr props.predicate)
+  | .hw .constant => Id.run do
+    (Std.HashMap.emptyWithCapacity 1).insert "value".toUTF8 (Attribute.integerAttr props.value)
+  | .builtin .unregistered =>
+    Std.HashMap.ofList props.properties.entries.toList
+  | .hw .module => Id.run do
+    let dict := Std.HashMap.emptyWithCapacity 4
+    let dict := dict.insert "module_type".toUTF8 (.hwModuleType props.module_type)
+    let dict := dict.insert "sym_name".toUTF8 (.stringAttr props.sym_name)
+    let dict := dict.insert "per_port_attrs".toUTF8 (.arrayAttr props.per_port_attrs)
+    let dict := dict.insert "parameters".toUTF8 (.arrayAttr props.parameters)
+    dict
   | _ =>
     Std.HashMap.emptyWithCapacity 0

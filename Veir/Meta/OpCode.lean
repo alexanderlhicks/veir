@@ -33,7 +33,7 @@ meta def getName (d : Dialect) : String :=
   -- with built-in types (`String_`, `Bool_`, `Array_`, `Function_`) while
   -- keeping the dialect mnemonic equal to the LLZK/MLIR name (`string`, etc.).
   -- TODO: should we add underscores to translate from CamelCase to snake_case?
-  let n := if d.name.endsWith "_" then d.name.dropRight 1 else d.name
+  let n := if d.name.endsWith "_" then (d.name.dropEnd 1).toString else d.name
   n.toLower
 
 /--
@@ -51,7 +51,8 @@ meta def mkDialectCodeSimple (d : Dialect) : Name :=
 /--
 The name of an operation as a `String`. Used for `fromByteArray` and `fromName`.
 -/
-meta def mkOpName (d : Dialect) (op : String) : String := d.getName ++ "." ++ op
+meta def mkOpName (d : Dialect) (op : String) : String :=
+  d.getName ++ "." ++ (op.replace "__" ".") -- we replace "__" with "." to work around issues with '.' in constructor names.
 
 end Dialect
 
@@ -79,6 +80,7 @@ meta def emitFromName (ds : Array Dialect) : TermElabM Command := do
   let mut res : TSyntax `term ← `($builtin $unreg)
   for d in ds do
     for op in d.operations do
+      let op := op.replace "." "__" -- we replace "." with "__" to avoid issues with '.' in constructor names
       if d.getName = "builtin" ∧ op = "unregistered" then continue
       res ← `(if name = $(Syntax.mkStrLit (d.mkOpName op)).toByteArray then ($(mkIdent d.mkDialectCode) $(mkIdent (.mkStr2 d.name op))) else $res)
   `(def $(mkIdent `OpCode.fromName) (name : $(mkIdent ``ByteArray)) : $(mkIdent `OpCode) := $res)

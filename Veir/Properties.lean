@@ -6,9 +6,26 @@ public import Veir.IR.Simp
 public import Veir.ForLean
 public import Veir.IR.OpInfo
 
+/- This is needed as some properties have ByteArray and require Repr instances -/
+deriving instance Repr for ByteArray
+
 namespace Veir
 
 public section
+
+/--
+  Properties of a `builtin.unregistered` operation. Holds the original (parsed) operation name
+  and the original `<{...}>` properties dictionary so that the operation can be printed back
+  with its source representation preserved.
+-/
+structure UnregisteredProperties where
+  opName : ByteArray
+  properties : DictionaryAttr
+deriving Inhabited, Repr, Hashable, DecidableEq
+
+def UnregisteredProperties.fromAttrDict (attrDict : Std.HashMap ByteArray Attribute) :
+    Except String UnregisteredProperties :=
+  .ok { opName := .empty, properties := DictionaryAttr.fromArray attrDict.toArray }
 
 def getUnitAttr (key : String) (attrDict : Std.HashMap ByteArray Attribute) :
     Except String Bool := do
@@ -291,6 +308,32 @@ def StoreProperties.fromAttrDict (attrDict : Std.HashMap ByteArray Attribute) :
   return { alignment := alignAttr, volatile_ := volatileAttr, nontemporal := nontemporalAttr, invariantGroup := invariantGroupAttr, syncscope := syncscopeAttr, access_groups := accessAttr, alias_scopes := aliasAttr, noalias_scopes := noaliasAttr, tbaa := tbaaAttr }
 
 /--
+  Properties of the `llvm.getelementptr` operation
+-/
+structure GetelementptrProperties where
+  rawConstantIndices : DenseArrayAttr
+  elem_type : TypeAttr
+  noWrapFlags : IntegerAttr
+deriving Inhabited, Repr, Hashable, DecidableEq
+
+def GetelementptrProperties.fromAttrDict (attrDict : Std.HashMap ByteArray Attribute) :
+    Except String GetelementptrProperties := do
+  let noWrapFlags ← match attrDict["noWrapFlags".toUTF8]? with
+    | some (.integerAttr noWrapFlag) => .ok noWrapFlag
+    | some attr => .error s!"expected 'noWrapFlag' to be an optional integer attribute, but got {attr}"
+    | none => .ok { value := 0, type := { bitwidth := 32 } }
+  let rawConstantIndices ← match attrDict["rawConstantIndices".toUTF8]? with
+    | some (.denseArrayAttr arr) => .ok arr
+    | some attr => .error s!"getelementptr: expected 'rawConstantIndices' to be a dense array attribute, 
+        but got {attr}"
+    | none => .error "getelementptr: missing 'rawConstantIndices' property"
+  let some typeAttr := attrDict["elem_type".toUTF8]?
+    | throw "getelementptr: missing 'elem_type' property"
+  if h : typeAttr.isType = false then
+    throw "getelementptr: expected 'elem_type' to be a type attribute" else
+  return {rawConstantIndices, elem_type := typeAttr.asType, noWrapFlags}
+
+/--
   Properties of the `comb.extract` operation.
 -/
 structure CombExtractProperties where
@@ -323,6 +366,49 @@ def CombIcmpProperties.fromAttrDict (attrDict : Std.HashMap ByteArray Attribute)
   let .integerAttr intAttr := attr
     | throw s!"comb.icmp: expected 'predicate' to be an integer attribute, but got {attr}"
   return { predicate := intAttr }
+
+/--
+  Properties of the `hw.constant` operation.
+-/
+structure HWConstantProperties where
+  value : IntegerAttr
+deriving Inhabited, Repr, Hashable, DecidableEq
+
+def HWConstantProperties.fromAttrDict (attrDict : Std.HashMap ByteArray Attribute) :
+    Except String HWConstantProperties := do
+  if attrDict.size > 1 then
+    throw s!"hw.constant: expected only 'value' property, but got {attrDict.size} properties"
+  let some attr := attrDict["value".toUTF8]?
+    | throw "hw.constant: missing 'value' property"
+  let .integerAttr intAttr := attr
+    | throw s!"hw.constant: expected 'value' to be an integer attribute, but got {attr}"
+  return { value := intAttr }
+
+/--
+  Properties of `hw.module`.
+-/
+structure HWModuleProperties where
+  module_type : HW.ModuleType
+  sym_name : StringAttr
+  per_port_attrs : ArrayAttr
+  parameters : ArrayAttr
+deriving Inhabited, Repr, Hashable, DecidableEq
+
+def HWModuleProperties.fromAttrDict (attrDict : Std.HashMap ByteArray Attribute) :
+    Except String HWModuleProperties := do
+  let some module_type := attrDict["module_type".toUTF8]? | throw "hw.module: requires attribute 'module_type'"
+  let .hwModuleType module_type := module_type | throw s!"hw.module: expected 'module_type' to be `!hw.modty`, but got {module_type}"
+
+  let some sym_name := attrDict["sym_name".toUTF8]? | throw "hw.module: requires attribute 'sym_name'"
+  let .stringAttr sym_name := sym_name | throw s!"hw.module: expected 'sym_name' to be a string attribute, but got {sym_name}"
+
+  let per_port_attrs := attrDict["per_port_attrs".toUTF8]?.getD (.arrayAttr .empty)
+  let .arrayAttr per_port_attrs := per_port_attrs | throw s!"hw.module: expected 'per_port_attrs' to be an array attribute, but got {per_port_attrs}"
+
+  let parameters := attrDict["parameters".toUTF8]?.getD (.arrayAttr .empty)
+  let .arrayAttr parameters := parameters | throw s!"hw.module: expected 'parameters' to be an array attribute, but got {parameters}"
+
+  return { module_type, sym_name, per_port_attrs, parameters }
 
 end
 end Veir

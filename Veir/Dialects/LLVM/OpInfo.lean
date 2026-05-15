@@ -11,7 +11,7 @@ public section
 @[expose, properties_of]
 def Llvm.propertiesOf (op : Llvm) : Type :=
 match op with
-| .constant => LLVMConstantProperties
+| .mlir__constant => LLVMConstantProperties
 | .add => NswNuwProperties
 | .sub => NswNuwProperties
 | .mul => NswNuwProperties
@@ -28,6 +28,7 @@ match op with
 | .alloca => AllocaProperties
 | .load => LoadProperties
 | .store => StoreProperties
+| .getelementptr => GetelementptrProperties
 | _ => Unit
 
 instance : HasDialectOpInfo Llvm where
