@@ -230,6 +230,11 @@ inductive Felt where
 deriving Inhabited, Repr, Hashable, DecidableEq
 
 @[opcodes]
+inductive String_ where
+| new
+deriving Inhabited, Repr, Hashable, DecidableEq
+
+@[opcodes]
 inductive Datapath where
 | compress
 | partial_product
