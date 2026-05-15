@@ -25,7 +25,7 @@ document for the protocol.
 |---|---|---|
 | `felt` | ✅ Supported | `felt.const` value stored as `IntegerAttr`, not structured `#felt.const<v>`. Printed form is `<{"value" = 42 : i256}>`, not LLZK's `<{"value" = #felt.const<42>}>`. Trait semantics (`NotFieldNative`, `Commutative`, `AllowConstraintAttr`, `AllowWitnessAttr`) **not encoded**. Folder/canonicalizer **not implemented**. Custom assembly format (`%0 = felt.add %a, %b`) **not supported** — generic format only. |
 | `include` | ❌ Unsupported | Planned Phase A.1 (Tier 1). |
-| `string` | ❌ Unsupported | Planned Phase A.2. |
+| `string` | ✅ Supported | Round-trips through `veir-opt`. One op (`string.new`), one type (`!string.type`). Custom assembly format (`%0 = string.new "x"`) **not supported** — generic form only. `Pure`, `ConstantLike`, `hasFolder` traits **not encoded**. |
 | `cast` | ❌ Unsupported | Planned Phase A.3. Depends on Felt. `InferTypeOpInterface` semantics will not be encoded. |
 | `ram` | ❌ Unsupported | Planned Phase A.4. Memory-effect traits (`MemRead`, `MemWrite`) **will not be encoded** — round-trip only. |
 | `bool` | ❌ Unsupported | Planned Phase A.5 (basic 5 ops) + Phase D.4 (`bool.cmp`). |
@@ -46,7 +46,7 @@ document for the protocol.
 |---|---|---|
 | `!felt.type` | ✅ | — |
 | `!felt.type<"name">` | ✅ | Field-spec name is preserved as a `ByteArray` on `FeltType`. **No field-modulus semantics.** Distinct field names compare distinct in `Attribute.decEq`; that's the only place the name participates. |
-| `!string.type` | ❌ | Planned A.2. |
+| `!string.type` | ✅ | First parameterless dialect type ported. |
 | `!array.type<dims x elem>` | ❌ | Planned D.3. Symbol-bearing dim forms `!array.type<5,@N x !felt.type>` blocked on Phase F. Affine-map dim forms `!array.type<#map x !felt.type>` blocked on Phase C.2. |
 | `!struct.type<@A>` | ❌ | Planned G.3. |
 | `!struct.type<@A<[5, @C, !felt.type, #map]>>` | ❌ | Mixed-kind parameter list — needs all of: integer literal, symbol ref, type, affine map. |

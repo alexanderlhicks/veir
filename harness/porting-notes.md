@@ -31,6 +31,36 @@ instance for new types exists, printing is automatic.
 
 ---
 
+## 2026-05-15 — Gotcha 3: `Symbol`-trait ops still need `@name` parsing
+
+**Discovery (Phase A.1 attempt)**: The retro / dialect-catalog
+classified `Include` as "Tier 1, no infra needed" because
+`include.from` is a *symbol producer*, not a user — so no
+`SymbolRefAttr` (and no symbol-table lookup) is required.
+
+In practice this is wrong. MLIR's generic format for an op with the
+`Symbol` trait still emits the `sym_name` attribute as `@aliasName`,
+not `"aliasName"` — i.e. the printer specializes for Symbol-trait ops.
+VEIR's `AttrParser` doesn't handle the `@` lexeme as an attribute
+form at all, so parsing fails before we get to anything semantic.
+
+**How to apply**: any LLZK op declaring the `Symbol` trait (Include,
+Function.def, Struct.def, Poly.template, Global.def) requires at least
+a minimal *flat* `@name` attribute parser, even if no other op
+references the symbol. This is much smaller than full
+`SymbolRefAttr` / symbol-table semantics (no nested lookup, no
+resolution, no integrity check) — it's "parse and store a name path".
+
+**Re-ordering implication**: Phase A.1 (Include) has been deferred
+out of Phase A and into Phase B/C, where the minimal symbol parser
+lands. Phase A continues with String, Cast, RAM, Bool, Constrain.
+
+**Upstream-fix candidate**: a flat-symbol `Attribute` case (akin to
+`StringAttr` but tagged) and the corresponding `parseOptionalSymbolRef`,
+without any IR-level resolution. Keeps the Phase B design open.
+
+---
+
 ## 2026-05-02 — Gotcha 1: exhaustive-match coupling across files
 
 **Discovery (Felt port)**: `Veir/Verifier.lean`'s
