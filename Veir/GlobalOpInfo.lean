@@ -6,7 +6,7 @@ public import Veir.Dialects.RISCV.OpInfo
 public import Veir.Dialects.ModArith.OpInfo
 public import Veir.Dialects.Cf.OpInfo
 public import Veir.Dialects.Comb.OpInfo
-public import Veir.Dialects.Felt.OpInfo
+public import Veir.Dialects.LLZK.Felt.OpInfo
 
 namespace Veir
 
