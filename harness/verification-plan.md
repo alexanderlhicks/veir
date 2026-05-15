@@ -28,7 +28,7 @@ control flow.** Mirroring that for Felt is the right first step.
 
 ### Pilot 1: `felt.add x 0 → x` (right identity)
 
-**Status**: 🚧 planned (Phase E.1 in `plan.md`).
+**Status**: ✅ landed 2026-05-15.
 
 **Mirror**: `Veir/Passes/Combines/Combine.lean` proves the same
 identity for RISCV's `add`. The Felt version is a near-copy with

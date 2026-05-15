@@ -11,6 +11,7 @@ import Veir.Passes.InstructionSelection.RISCV64
 import Veir.Passes.DCE.dce
 import Veir.Passes.CastsReconciliation.Reconciliation
 import Veir.Passes.Combines.Combine
+import Veir.Passes.Felt.Combine
 
 open Veir.Parser
 open Veir
@@ -27,6 +28,7 @@ def availablePasses : Std.HashMap String (Pass OpCode) :=
     |>.insert CastReconcilePass.name CastReconcilePass
     |>.insert CastReconcilePass.name CastReconcilePass
     |>.insert RISCV.Combine.name RISCV.Combine
+    |>.insert FeltPass.Combine.name FeltPass.Combine
 
 /--
   Arguments for the `veir-opt` command-line tool, parsed from the CLI.

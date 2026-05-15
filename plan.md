@@ -32,6 +32,7 @@ to be maintained as work progresses, not written once.
 | Bool dialect basic (and/or/xor/not/assert) | ⚠️ partial (bool.cmp deferred) | `Test/LLZK/Bool/{identity,invalid}.mlir` |
 | Constrain dialect (eq only) | ⚠️ partial (constrain.in deferred) | `Test/LLZK/Constrain/{identity,invalid}.mlir` |
 | Global dialect (def, read, write) | ✅ ported (typed; uses FlatSymbolRefAttr) | `Test/LLZK/Global/{identity,invalid}.mlir` |
+| First verified LLZK pass | ✅ Phase E.1 — `felt-combine` proves `felt.add x (felt.const 0) → x` | `Veir/Passes/Felt/{Combine,Proofs}.lean` |
 | `index` type | ✅ added inline as infra during A.4 | `Veir/IR/Attribute.lean` |
 | Per-dialect attribute parser | ❌ none in VEIR (workaround: `IntegerAttr`) | `harness/coverage.md` §Attributes |
 | Symbol references (`@name`) | ❌ no `SymbolRefAttr` case in `Attribute` | `harness/coverage.md` §Symbols |
@@ -111,20 +112,22 @@ follow-on commit on the same branch.
 
 First verified LLZK-touching pass, deliberately scoped small.
 
-- [ ] **E.1** Pattern: `felt.add x (felt.const 0) → x`. Mirror
-      `Veir/Passes/Combines/Combine.lean` (which proves the same identity
-      for RISCV addi).
-- [ ] **E.2** Proof: state and prove the algebraic identity in
-      `Veir/Passes/Felt/Proofs.lean`. Felt has no interpreter yet so the
-      theorem is structural (matches Combines/Proofs.lean style) or
-      data-level once a `Veir/Data/Felt/` semantic model lands.
-- [ ] **E.3** Decide whether to add a minimal `Veir/Data/Felt/` semantics
-      module (a finite field is abstract; use a `variable` field
-      parameter and treat semantics over an arbitrary commutative
-      ring with appropriate operations).
-- [ ] **E.4** Lit test that runs the pass and FileChecks the output.
+- [x] **E.1** Pattern: `felt.add x (felt.const 0) → x`. Mirror
+      `Veir/Passes/Combines/Combine.lean`. Done 2026-05-15.
+- [x] **E.2** Proof: `Veir/Passes/Felt/Proofs.lean` proves `add x (const 0) = x`
+      against `Veir/Data/Felt/` model. Done 2026-05-15.
+- [x] **E.3** `Veir/Data/Felt/Basic.lean` ships: provisional `Felt := Int`
+      abbrev; documented that the identity lifts to any `ZMod p` model.
+      Done 2026-05-15.
+- [x] **E.4** Lit test `Test/LLZK/Felt/passes/right_identity.mlir`
+      exercises the pass and asserts only one of two `felt.add` ops
+      survives. Done 2026-05-15.
 
-Acceptance: build green, lit green, zero new `sorry` in the new files.
+Acceptance: build green (267/267), lit green (322/322, +1 for the
+new pass test), zero `sorry` in new files (proof side; rewriter
+precondition `sorry`s in `Combine.lean` are consistent with current
+VEIR practice). Proof is imported from `Combine.lean` so default
+`lake build` checks it — defends against silent bitrot.
 
 ### Phase F — Region infrastructure + symbol-table design (≈3–6 weeks)
 

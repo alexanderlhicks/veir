@@ -1,0 +1,25 @@
+// RUN: veir-opt %s -p="felt-combine" | filecheck %s
+//
+// Felt right-identity rewrite: `felt.add x (felt.const 0) -> x`.
+// Soundness theorem in Veir/Passes/Felt/Proofs.lean.
+
+"builtin.module"() ({
+^bb0(%a: !felt.type):
+  // %z is unused after rewrite; DCE doesn't run here, so it stays.
+  %z = "felt.const"() <{value = 0 : i256}> : () -> !felt.type
+  %r = "felt.add"(%a, %z) : (!felt.type, !felt.type) -> !felt.type
+  // Sanity: a non-matching add (rhs is not zero) is left untouched.
+  %c1 = "felt.const"() <{value = 1 : i256}> : () -> !felt.type
+  %s = "felt.add"(%a, %c1) : (!felt.type, !felt.type) -> !felt.type
+}) : () -> ()
+
+// The first felt.add disappears (its result is replaced by %a); the
+// second one stays because its rhs is felt.const 1, not 0.
+//
+// CHECK:        "builtin.module"() ({
+// CHECK:          %{{[^ ]+}} = "felt.const"() <{"value" = 0 : i256}> : () -> !felt.type
+// CHECK-NEXT:     %{{[^ ]+}} = "felt.const"() <{"value" = 1 : i256}> : () -> !felt.type
+// CHECK-NEXT:     %{{[^ ]+}} = "felt.add"(%{{[^,]+}}, %{{[^)]+}}) : (!felt.type, !felt.type) -> !felt.type
+// CHECK-NEXT:   }) : () -> ()
+// Only one felt.add survives (the matching-on-zero one was rewritten).
+// CHECK-NOT:    "felt.add"
