@@ -292,6 +292,19 @@ def parseOptionalModArithType : AttrParserM (Option TypeAttr) := do
   return some (ModArithType.mk modulus modulusType)
 
 /--
+  Parse an LLZK string type, if present. Syntax: `!string.type` (no parameters).
+-/
+def parseOptionalStringType : AttrParserM (Option TypeAttr) := do
+  let token ← peekToken
+  let .exclamationIdent := token.kind | return none
+  let input := (← getThe ParserState).input
+  let typeName := { token.slice with start := token.slice.start + 1 }.of input
+  if typeName ≠ "string.type".toByteArray then
+    return none
+  let _ ← consumeToken
+  return some StringType.mk
+
+/--
   Parse an LLZK felt type, if present.
   Its syntax is `!felt.type` (unspecified field) or `!felt.type<"name">`
   (with a named field).
@@ -350,6 +363,8 @@ partial def parseOptionalType : AttrParserM (Option TypeAttr) := do
     return some modArithType
   if let some feltType ← parseOptionalFeltType then
     return some feltType
+  if let some stringType ← parseOptionalStringType then
+    return some stringType
   if let some llvmPointerType := ← parseOptionalLLVMPointerType then
     return some llvmPointerType
   if let some cudaTilePointerType := ← parseOptionalCudaTilePointerType then
