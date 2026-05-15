@@ -253,6 +253,12 @@ inductive Ram where
 deriving Inhabited, Repr, Hashable, DecidableEq
 
 @[opcodes]
+inductive Cast where
+| tofelt
+| toindex
+deriving Inhabited, Repr, Hashable, DecidableEq
+
+@[opcodes]
 inductive Datapath where
 | compress
 | partial_product
