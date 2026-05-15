@@ -28,7 +28,7 @@ document for the protocol.
 | `string` | ✅ Supported | Round-trips through `veir-opt`. One op (`string.new`), one type (`!string.type`). Custom assembly format (`%0 = string.new "x"`) **not supported** — generic form only. `Pure`, `ConstantLike`, `hasFolder` traits **not encoded**. |
 | `cast` | ✅ Supported | `cast.tofelt` (int → felt) and `cast.toindex` (felt → index) round-trip. **Not encoded**: `InferTypeOpInterface` (result type must be explicit in textual form), `Pure`, `NotFieldNative` traits. Operand-type check (`AnyLLZKIntType`) **not enforced** — VEIR accepts any operand type. |
 | `ram` | ✅ Supported | `ram.load` and `ram.store` round-trip with typed shape checks. Uses `index` and `!felt.type`. **Not encoded**: `MemRead`/`MemWrite` memory effects, `WitnessGen` trait — VEIR treats both ops as pure. |
-| `bool` | ❌ Unsupported | Planned Phase A.5 (basic 5 ops) + Phase D.4 (`bool.cmp`). |
+| `bool` (basic) | ⚠️ Partial | 5 ops ported: `and`, `or`, `xor`, `not`, `assert` (with optional `msg`). **`bool.cmp` deferred** (needs enum attribute infra; can be unblocked via the IntegerAttr workaround in Phase D.4). **Not encoded**: `Pure`, `Commutative`, `NotFieldNative` traits; `MemoryEffectsOpInterface` on assert. |
 | `constrain` (no `emit.in`) | ❌ Unsupported | Planned Phase A.6. `emit.in` requires `Array` types (containment check) — deferred to post-Phase D. `ConstraintOpInterface` will be a marker only, no semantic checks. |
 | `global` | ❌ Unsupported | Planned Phase D.1. Blocked on `SymbolRefAttr` infrastructure (Phase C). |
 | `pod` | ❌ Unsupported | Planned Phase D.2. Blocked on `AffineMapAttr` + variadic-of-variadic (Phase C). |

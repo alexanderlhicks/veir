@@ -9,6 +9,7 @@ public import Veir.Dialects.Comb.OpInfo
 public import Veir.Dialects.LLZK.Felt.OpInfo
 public import Veir.Dialects.LLZK.String.OpInfo
 public import Veir.Dialects.LLZK.Include.OpInfo
+public import Veir.Dialects.LLZK.Bool.OpInfo
 public import Veir.Dialects.HW.OpInfo
 
 namespace Veir
@@ -31,6 +32,7 @@ match opCode with
 | .felt op => Felt.propertiesOf op
 | .string op => String_.propertiesOf op
 | .include op => Include_.propertiesOf op
+| .bool op => Bool_.propertiesOf op
 | .hw op => HW.propertiesOf op
 | .builtin .unregistered => UnregisteredProperties
 | _ => Unit
@@ -69,6 +71,10 @@ def Properties.fromAttrDict (opCode : OpCode) (attrDict : Std.HashMap ByteArray 
   case ram =>
     all_goals exact (Except.ok ())
   case cast =>
+    all_goals exact (Except.ok ())
+  case bool op =>
+    cases op
+    case assert => exact (BoolAssertProperties.fromAttrDict attrDict)
     all_goals exact (Except.ok ())
   case felt op =>
     cases op
@@ -180,6 +186,10 @@ def Properties.toAttrDict (opCode : OpCode) (props : propertiesOf opCode) :
   | .include .from =>
     let dict := (Std.HashMap.emptyWithCapacity 2).insert "sym_name".toUTF8 (Attribute.flatSymbolRefAttr props.sym_name)
     dict.insert "path".toUTF8 (Attribute.stringAttr props.path)
+  | .bool .assert =>
+    match props.msg with
+    | some m => (Std.HashMap.emptyWithCapacity 1).insert "msg".toUTF8 (Attribute.stringAttr m)
+    | none => Std.HashMap.emptyWithCapacity 0
   | .arith .addi | .arith .subi | .arith .muli | .arith .shli | .arith .trunci
   | .llvm .add | .llvm .sub | .llvm .mul | .llvm .shl | .llvm .trunc => Id.run do
     let mut dict := Std.HashMap.emptyWithCapacity 2

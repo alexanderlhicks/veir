@@ -259,6 +259,15 @@ inductive Cast where
 deriving Inhabited, Repr, Hashable, DecidableEq
 
 @[opcodes]
+inductive Bool_ where
+| and
+| or
+| xor
+| not
+| assert
+deriving Inhabited, Repr, Hashable, DecidableEq
+
+@[opcodes]
 inductive Datapath where
 | compress
 | partial_product

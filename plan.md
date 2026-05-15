@@ -29,6 +29,7 @@ to be maintained as work progresses, not written once.
 | Include dialect (`include.from`) | ✅ ported (typed, with typed-path negative test) | `Test/LLZK/Include/{identity,invalid}.mlir` |
 | RAM dialect (`ram.load`, `ram.store`) | ✅ ported (typed) | `Test/LLZK/RAM/{identity,invalid}.mlir` |
 | Cast dialect (`cast.tofelt`, `cast.toindex`) | ✅ ported (typed) | `Test/LLZK/Cast/{identity,invalid}.mlir` |
+| Bool dialect basic (and/or/xor/not/assert) | ⚠️ partial (bool.cmp deferred) | `Test/LLZK/Bool/{identity,invalid}.mlir` |
 | `index` type | ✅ added inline as infra during A.4 | `Veir/IR/Attribute.lean` |
 | Per-dialect attribute parser | ❌ none in VEIR (workaround: `IntegerAttr`) | `harness/coverage.md` §Attributes |
 | Symbol references (`@name`) | ❌ no `SymbolRefAttr` case in `Attribute` | `harness/coverage.md` §Symbols |
@@ -58,7 +59,7 @@ In dependency order:
 - [x] **A.2 String** — single op, single param-less type. Done 2026-05-15: 213 build / 265 lit / clean test.
 - [x] **A.3 Cast** — Felt + index types (both in place). Done 2026-05-15.
 - [x] **A.4 RAM** — Felt-dependent, plus `index` type infra. Done 2026-05-15.
-- [ ] **A.5 Bool (basic)** — 5 of 6 ops; `bool.cmp` deferred (0.7× Felt). Enum stored as `IntegerAttr`.
+- [x] **A.5 Bool (basic)** — 5 of 6 ops ported. `bool.cmp` deferred to Phase D.4. Done 2026-05-15.
 - [ ] **A.6 Constrain (no `emit.in`)** — uses `ConstraintOpInterface`; `emit.in` requires Array types and is deferred (0.5× Felt)
 
 Acceptance: each dialect has a `Test/<Dialect>/identity.mlir`, full lit
