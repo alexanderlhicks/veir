@@ -274,6 +274,13 @@ inductive Constrain where
 deriving Inhabited, Repr, Hashable, DecidableEq
 
 @[opcodes]
+inductive Global where
+| «def»
+| read
+| write
+deriving Inhabited, Repr, Hashable, DecidableEq
+
+@[opcodes]
 inductive Datapath where
 | compress
 | partial_product

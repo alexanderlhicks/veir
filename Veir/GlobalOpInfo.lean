@@ -10,6 +10,7 @@ public import Veir.Dialects.LLZK.Felt.OpInfo
 public import Veir.Dialects.LLZK.String.OpInfo
 public import Veir.Dialects.LLZK.Include.OpInfo
 public import Veir.Dialects.LLZK.Bool.OpInfo
+public import Veir.Dialects.LLZK.Global.OpInfo
 public import Veir.Dialects.HW.OpInfo
 
 namespace Veir
@@ -33,6 +34,7 @@ match opCode with
 | .string op => String_.propertiesOf op
 | .include op => Include_.propertiesOf op
 | .bool op => Bool_.propertiesOf op
+| .global op => Global.propertiesOf op
 | .hw op => HW.propertiesOf op
 | .builtin .unregistered => UnregisteredProperties
 | _ => Unit
@@ -78,6 +80,11 @@ def Properties.fromAttrDict (opCode : OpCode) (attrDict : Std.HashMap ByteArray 
     all_goals exact (Except.ok ())
   case constrain =>
     all_goals exact (Except.ok ())
+  case global op =>
+    cases op
+    case «def» => exact (GlobalDefProperties.fromAttrDict attrDict)
+    case read => exact (GlobalRefProperties.fromAttrDict "global.read" attrDict)
+    case write => exact (GlobalRefProperties.fromAttrDict "global.write" attrDict)
   case felt op =>
     cases op
     case const => exact (FeltConstProperties.fromAttrDict attrDict)
@@ -192,6 +199,17 @@ def Properties.toAttrDict (opCode : OpCode) (props : propertiesOf opCode) :
     match props.msg with
     | some m => (Std.HashMap.emptyWithCapacity 1).insert "msg".toUTF8 (Attribute.stringAttr m)
     | none => Std.HashMap.emptyWithCapacity 0
+  | .global .«def» => Id.run do
+    let mut dict := Std.HashMap.emptyWithCapacity 4
+    dict := dict.insert "sym_name".toUTF8 (Attribute.flatSymbolRefAttr props.sym_name)
+    if props.constant then
+      dict := dict.insert "constant".toUTF8 (Attribute.unitAttr UnitAttr.mk)
+    dict := dict.insert "type".toUTF8 props.type
+    if let some iv := props.initial_value then
+      dict := dict.insert "initial_value".toUTF8 iv
+    dict
+  | .global .read | .global .write =>
+    (Std.HashMap.emptyWithCapacity 1).insert "name_ref".toUTF8 (Attribute.flatSymbolRefAttr props.name_ref)
   | .arith .addi | .arith .subi | .arith .muli | .arith .shli | .arith .trunci
   | .llvm .add | .llvm .sub | .llvm .mul | .llvm .shl | .llvm .trunc => Id.run do
     let mut dict := Std.HashMap.emptyWithCapacity 2

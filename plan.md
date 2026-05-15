@@ -31,6 +31,7 @@ to be maintained as work progresses, not written once.
 | Cast dialect (`cast.tofelt`, `cast.toindex`) | ✅ ported (typed) | `Test/LLZK/Cast/{identity,invalid}.mlir` |
 | Bool dialect basic (and/or/xor/not/assert) | ⚠️ partial (bool.cmp deferred) | `Test/LLZK/Bool/{identity,invalid}.mlir` |
 | Constrain dialect (eq only) | ⚠️ partial (constrain.in deferred) | `Test/LLZK/Constrain/{identity,invalid}.mlir` |
+| Global dialect (def, read, write) | ✅ ported (typed; uses FlatSymbolRefAttr) | `Test/LLZK/Global/{identity,invalid}.mlir` |
 | `index` type | ✅ added inline as infra during A.4 | `Veir/IR/Attribute.lean` |
 | Per-dialect attribute parser | ❌ none in VEIR (workaround: `IntegerAttr`) | `harness/coverage.md` §Attributes |
 | Symbol references (`@name`) | ❌ no `SymbolRefAttr` case in `Attribute` | `harness/coverage.md` §Symbols |
@@ -101,7 +102,7 @@ follow-on commit on the same branch.
 
 ### Phase D — Tier 2 dialects (≈1–2 weeks)
 
-- [ ] **D.1 Global** — uses upstream `FlatSymbolRefAttr` (no new infra)
+- [x] **D.1 Global** — uses upstream `FlatSymbolRefAttr`. Done 2026-05-15. Validated that retiring Phase B was correct: no symbol-table machinery needed for round-trip.
 - [ ] **D.2 POD** — uses C.2 + C.3
 - [ ] **D.3 Array** (types + non-symbol ops) — uses C.2 + C.3
 - [ ] **D.4 Bool full** — adds `bool.cmp` (uses C.4 if enum parser; else stays on `IntegerAttr`)
