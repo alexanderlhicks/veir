@@ -39,4 +39,15 @@ theorem constant_fold_add (c1 c2 : Int) :
     add (const c1) (const c2) = const (c1 + c2) := by
   simp [add, const]
 
+/--
+  `felt.sub x x = felt.const 0`. Soundness of `self_subtraction_to_zero`
+  in `Veir/Passes/Felt/Combine.lean`.
+
+  Lifts to any `ZMod p` because `x - x = 0` is preserved by every ring
+  homomorphism.
+-/
+theorem self_subtraction_to_zero (x : Felt) :
+    sub x x = const 0 := by
+  simp [sub, const]
+
 end Veir.Data.Felt

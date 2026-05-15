@@ -95,7 +95,7 @@ for preconditions (consistent with current state).
 
 ### Pilot 3: `felt.sub x x → felt.const 0` (self-subtraction)
 
-**Status**: 🚧 planned (post Phase E).
+**Status**: ✅ landed 2026-05-15.
 
 **Theorem**: `∀ x, x - x = 0` in `[Ring R]`. One-line proof.
 

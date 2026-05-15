@@ -11,6 +11,11 @@ def matchAdd (op : OperationPtr) (ctx : IRContext OpCode) :
   let (operands, properties) ← matchOp op ctx (OpCode.felt Felt.add) 2
   return (operands[0]!, operands[1]!, properties)
 
+def matchSub (op : OperationPtr) (ctx : IRContext OpCode) :
+    Option (ValuePtr × ValuePtr × propertiesOf (OpCode.felt Felt.sub)) := do
+  let (operands, properties) ← matchOp op ctx (OpCode.felt Felt.sub) 2
+  return (operands[0]!, operands[1]!, properties)
+
 def matchConst (op : OperationPtr) (ctx : IRContext OpCode) :
     Option (propertiesOf (OpCode.felt Felt.const)) := do
   let (_, properties) ← matchOp op ctx (OpCode.felt Felt.const) 0

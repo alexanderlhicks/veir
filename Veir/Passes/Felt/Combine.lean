@@ -51,12 +51,29 @@ def constant_fold_add (rewriter : PatternRewriter OpCode) (op : OperationPtr) :
     #[resultType] #[] #[] #[] cstProp (some <| .before op) sorry sorry sorry sorry
   rewriter.replaceOp op newOp sorry sorry sorry sorry sorry
 
+set_option warn.sorry false in
+/-- felt.sub x x -> felt.const 0 -/
+def self_subtraction_to_zero (rewriter : PatternRewriter OpCode) (op : OperationPtr) :
+    Option (PatternRewriter OpCode) := do
+  let some (lhs, rhs, _) := matchSub op rewriter.ctx | return rewriter
+  -- ValuePtr equality: both operands flow from the same SSA value.
+  if lhs ≠ rhs then return rewriter
+  -- Synthesize a felt.const 0. Use i256 for the literal (matches the
+  -- shape of felt.const literals in our test corpus); the underlying
+  -- field element semantics is field-agnostic.
+  let cstProp : FeltConstProperties :=
+    { value := { value := 0, type := { bitwidth := 256 } } }
+  let resultType := lhs.getType! rewriter.ctx.raw
+  let (rewriter, newOp) ← rewriter.createOp (OpCode.felt Felt.const)
+    #[resultType] #[] #[] #[] cstProp (some <| .before op) sorry sorry sorry sorry
+  rewriter.replaceOp op newOp sorry sorry sorry sorry sorry
+
 /-! # Pass implementation -/
 
 def Combine.impl (ctx : WfIRContext OpCode) (op : OperationPtr) (_ : op.InBounds ctx.raw) :
     ExceptT String IO (WfIRContext OpCode) := do
   let pattern := RewritePattern.GreedyRewritePattern
-    #[right_identity_zero_add, constant_fold_add]
+    #[right_identity_zero_add, constant_fold_add, self_subtraction_to_zero]
   match RewritePattern.applyInContext pattern ctx with
   | none => throw "Error while applying felt-combine pattern rewrites"
   | some ctx => pure ctx

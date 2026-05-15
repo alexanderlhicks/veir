@@ -27,6 +27,9 @@ def const (n : Int) : Felt := n
 /-- Field addition (provisional: `Int.add`). Mirrors `Veir.Data.RISCV.add`. -/
 def add (a b : Felt) : Felt := a + b
 
+/-- Field subtraction (provisional: `Int.sub`). -/
+def sub (a b : Felt) : Felt := a - b
+
 end
 
 end Veir.Data.Felt
