@@ -51,6 +51,13 @@ structure RegisterType where
 deriving Inhabited, Repr, DecidableEq, Hashable
 
 /--
+  The MLIR builtin `index` type. A platform-dependent integer; semantically
+  used for offsets, loop counters, and array indices. Carries no parameters.
+-/
+structure IndexType
+deriving Inhabited, Repr, DecidableEq, Hashable
+
+/--
   An integer literal with an associated integer type.
 -/
 structure IntegerAttr where
@@ -269,6 +276,8 @@ inductive Attribute
 | feltType (type : FeltType)
 /-- LLZK string type -/
 | stringType (type : StringType)
+/-- MLIR builtin index type -/
+| indexType (type : IndexType)
 /-- LLVM pointer type -/
 | llvmPointerType (type : LLVM.PointerType)
 /-- Cuda Tile pointer type -/
@@ -406,6 +415,10 @@ def Attribute.decEq (attr1 attr2 : Attribute) : Decidable (attr1 = attr2) := by
     exact (match decEq type1 type2 with
       | isTrue hEq => isTrue (by grind)
       | isFalse hEq => isFalse (by grind))
+  case indexType.indexType type1 type2 =>
+    exact (match decEq type1 type2 with
+      | isTrue hEq => isTrue (by grind)
+      | isFalse hEq => isFalse (by grind))
   case registerType.registerType type1 type2 =>
     exact (match decEq type1 type2 with
       | isTrue hEq => isTrue (by grind)
@@ -505,6 +518,9 @@ instance : ToString FeltType where
 instance : ToString StringType where
   toString _ := "!string.type"
 
+instance : ToString IndexType where
+  toString _ := "index"
+
 instance : ToString LLVM.PointerType where
   toString _ := "!llvm.ptr"
 
@@ -595,6 +611,7 @@ def Attribute.toString (attr : Attribute) : String :=
   | .modArithType type => ToString.toString type
   | .feltType type => ToString.toString type
   | .stringType type => ToString.toString type
+  | .indexType type => ToString.toString type
   | .llvmPointerType type => ToString.toString type
   | .cudaTilePointerType type => ToString.toString type
   | .hwModuleType type => ToString.toString type
@@ -661,6 +678,9 @@ instance : Coe FeltType Attribute where
 instance : Coe StringType Attribute where
   coe type := .stringType type
 
+instance : Coe IndexType Attribute where
+  coe type := .indexType type
+
 instance : Coe LLVM.PointerType Attribute where
   coe type := .llvmPointerType type
 
@@ -699,6 +719,7 @@ def isType (attr : Attribute) : Bool :=
   | .modArithType _ => true
   | .feltType _ => true
   | .stringType _ => true
+  | .indexType _ => true
   | .registerType _ => true
   | .registerAttr _ => true
   | .llvmPointerType _ => true
@@ -718,6 +739,8 @@ theorem isType_modArithType type : (modArithType type).isType = true := by rfl
 theorem isType_feltType type : (feltType type).isType = true := by rfl
 @[simp, grind =]
 theorem isType_stringType type : (stringType type).isType = true := by rfl
+@[simp, grind =]
+theorem isType_indexType type : (indexType type).isType = true := by rfl
 @[simp, grind =]
 theorem isType_llvmPointerType type : (llvmPointerType type).isType = true := by rfl
 @[simp, grind =]
@@ -770,6 +793,9 @@ instance : Coe FeltType TypeAttr where
 
 instance : Coe StringType TypeAttr where
   coe type := ⟨.stringType type, by rfl⟩
+
+instance : Coe IndexType TypeAttr where
+  coe type := ⟨.indexType type, by rfl⟩
 
 instance : Coe RegisterType TypeAttr where
   coe type := ⟨.registerType type, by rfl⟩

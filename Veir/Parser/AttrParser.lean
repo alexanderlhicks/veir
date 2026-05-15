@@ -49,6 +49,15 @@ def parseOptionalIntegerType : AttrParserM (Option IntegerType) := do
   | _ => return none
 
 /--
+  Parse the MLIR builtin `index` type. Spelled `index` as a bare keyword
+  (no `!` prefix and no parameters).
+-/
+def parseOptionalIndexType : AttrParserM (Option IndexType) := do
+  if ← parseOptionalKeyword "index".toByteArray then
+    return some IndexType.mk
+  return none
+
+/--
   Parse an optional register type, which is fundamentally a wrapper for `i64`.
   A register type is represented as `!reg`.
 -/
@@ -425,6 +434,8 @@ partial def parseOptionalFunctionType : AttrParserM (Option FunctionType) := do
 partial def parseOptionalType : AttrParserM (Option TypeAttr) := do
   if let some integerType ← parseOptionalIntegerType then
     return some integerType
+  if let some indexType ← parseOptionalIndexType then
+    return some indexType
   if let some registerType ← parseOptionalRegisterType then
     return some registerType
   if let some modArithType ← parseOptionalModArithType then
