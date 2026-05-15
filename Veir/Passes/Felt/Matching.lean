@@ -16,4 +16,11 @@ def matchConst (op : OperationPtr) (ctx : IRContext OpCode) :
   let (_, properties) ← matchOp op ctx (OpCode.felt Felt.const) 0
   return properties
 
+/-- Follow a ValuePtr to its defining `felt.const` op and return its
+    properties; mirrors `Veir.matchConstantVal` for LLVM. -/
+def matchConstFromValue (val : ValuePtr) (ctx : IRContext OpCode) :
+    Option (propertiesOf (OpCode.felt Felt.const)) := do
+  let .opResult opResultPtr := val | none
+  matchConst opResultPtr.op ctx
+
 end Veir.FeltPass

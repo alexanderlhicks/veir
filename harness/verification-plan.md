@@ -74,7 +74,7 @@ size.
 
 ### Pilot 2: `felt.const c1 + felt.const c2 → felt.const (c1+c2)` (constant fold)
 
-**Status**: 🚧 planned (Phase E.2).
+**Status**: ✅ landed 2026-05-15.
 
 **Mirror**: `Veir/Passes/InstCombine.lean` lines 42–45 do constant
 folding for LLVM but without proofs. The verified version would prove:

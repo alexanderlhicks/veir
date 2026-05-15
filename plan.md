@@ -33,6 +33,7 @@ to be maintained as work progresses, not written once.
 | Constrain dialect (eq only) | ⚠️ partial (constrain.in deferred) | `Test/LLZK/Constrain/{identity,invalid}.mlir` |
 | Global dialect (def, read, write) | ✅ ported (typed; uses FlatSymbolRefAttr) | `Test/LLZK/Global/{identity,invalid}.mlir` |
 | First verified LLZK pass | ✅ Phase E.1 — `felt-combine` proves `felt.add x (felt.const 0) → x` | `Veir/Passes/Felt/{Combine,Proofs}.lean` |
+| Second verified LLZK pass (constant-fold) | ✅ Phase E.2 — `felt-combine` proves `felt.add (felt.const c1) (felt.const c2) → felt.const (c1+c2)` | `Veir/Passes/Felt/{Combine,Proofs}.lean` |
 | `index` type | ✅ added inline as infra during A.4 | `Veir/IR/Attribute.lean` |
 | Per-dialect attribute parser | ❌ none in VEIR (workaround: `IntegerAttr`) | `harness/coverage.md` §Attributes |
 | Symbol references (`@name`) | ❌ no `SymbolRefAttr` case in `Attribute` | `harness/coverage.md` §Symbols |

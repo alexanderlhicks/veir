@@ -28,4 +28,15 @@ theorem right_identity_zero_add (lhs : Felt) :
   -- simp set.
   simp [add, const]
 
+/--
+  `felt.add (felt.const c1) (felt.const c2) = felt.const (c1 + c2)`.
+  Soundness of `constant_fold_add` in `Veir/Passes/Felt/Combine.lean`.
+
+  Lifts to `ZMod p` because `+` commutes with the canonical ring
+  homomorphism `ℤ → ZMod p`.
+-/
+theorem constant_fold_add (c1 c2 : Int) :
+    add (const c1) (const c2) = const (c1 + c2) := by
+  simp [add, const]
+
 end Veir.Data.Felt
