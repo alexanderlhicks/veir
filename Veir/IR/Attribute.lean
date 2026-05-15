@@ -117,6 +117,14 @@ structure FeltType where
   fieldName : Option ByteArray
 deriving Inhabited, Repr, DecidableEq, Hashable
 
+/--
+  The `!string.type` from LLZK's string dialect. Carries no parameters.
+  Distinct from `StringAttr`, which is VEIR's built-in container for string
+  attribute values; `StringType` is the *type* of LLZK string operands.
+-/
+structure StringType
+deriving Inhabited, Repr, DecidableEq, Hashable
+
 namespace LLVM
 
 structure PointerType
@@ -206,6 +214,8 @@ inductive Attribute
 | modArithType (type : ModArithType)
 /-- LLZK felt type -/
 | feltType (type : FeltType)
+/-- LLZK string type -/
+| stringType (type : StringType)
 /-- LLVM pointer type -/
 | llvmPointerType (type : LLVM.PointerType)
 /-- Cuda Tile pointer type -/
@@ -333,6 +343,10 @@ def Attribute.decEq (attr1 attr2 : Attribute) : Decidable (attr1 = attr2) := by
     exact (match decEq type1 type2 with
       | isTrue hEq => isTrue (by grind)
       | isFalse hEq => isFalse (by grind))
+  case stringType.stringType type1 type2 =>
+    exact (match decEq type1 type2 with
+      | isTrue hEq => isTrue (by grind)
+      | isFalse hEq => isFalse (by grind))
   case registerType.registerType type1 type2 =>
     exact (match decEq type1 type2 with
       | isTrue hEq => isTrue (by grind)
@@ -415,6 +429,9 @@ instance : ToString FeltType where
     | some name => s!"!felt.type<\"{escapeStringLiteral (String.fromUTF8! name)}\">"
     | none => "!felt.type"
 
+instance : ToString StringType where
+  toString _ := "!string.type"
+
 instance : ToString LLVM.PointerType where
   toString _ := "!llvm.ptr"
 
@@ -488,6 +505,7 @@ def Attribute.toString (attr : Attribute) : String :=
   | .functionType type => type.toString
   | .modArithType type => ToString.toString type
   | .feltType type => ToString.toString type
+  | .stringType type => ToString.toString type
   | .llvmPointerType type => ToString.toString type
   | .cudaTilePointerType type => ToString.toString type
 termination_by sizeOf attr
@@ -544,6 +562,9 @@ instance : Coe ModArithType Attribute where
 instance : Coe FeltType Attribute where
   coe type := .feltType type
 
+instance : Coe StringType Attribute where
+  coe type := .stringType type
+
 instance : Coe LLVM.PointerType Attribute where
   coe type := .llvmPointerType type
 
@@ -576,6 +597,7 @@ def isType (attr : Attribute) : Bool :=
   | .functionType _ => true
   | .modArithType _ => true
   | .feltType _ => true
+  | .stringType _ => true
   | .registerType _ => true
   | .registerAttr _ => true
   | .llvmPointerType _ => true
@@ -592,6 +614,8 @@ theorem isType_functionType type : (functionType type).isType = true := by rfl
 theorem isType_modArithType type : (modArithType type).isType = true := by rfl
 @[simp, grind =]
 theorem isType_feltType type : (feltType type).isType = true := by rfl
+@[simp, grind =]
+theorem isType_stringType type : (stringType type).isType = true := by rfl
 @[simp, grind =]
 theorem isType_llvmPointerType type : (llvmPointerType type).isType = true := by rfl
 @[simp, grind =]
@@ -639,6 +663,9 @@ instance : Coe ModArithType TypeAttr where
 
 instance : Coe FeltType TypeAttr where
   coe type := ⟨.feltType type, by rfl⟩
+
+instance : Coe StringType TypeAttr where
+  coe type := ⟨.stringType type, by rfl⟩
 
 instance : Coe RegisterType TypeAttr where
   coe type := ⟨.registerType type, by rfl⟩
