@@ -7,6 +7,7 @@ public import Veir.Dialects.ModArith.OpInfo
 public import Veir.Dialects.Cf.OpInfo
 public import Veir.Dialects.Comb.OpInfo
 public import Veir.Dialects.LLZK.Felt.OpInfo
+public import Veir.Dialects.LLZK.String.OpInfo
 
 namespace Veir
 
@@ -26,6 +27,7 @@ match opCode with
 | .cf op => Cf.propertiesOf op
 | .comb op => Comb.propertiesOf op
 | .felt op => Felt.propertiesOf op
+| .string op => String_.propertiesOf op
 | _ => Unit
 
 instance : HasDialectOpInfo OpCode where
@@ -53,8 +55,9 @@ def Properties.fromAttrDict (opCode : OpCode) (attrDict : Std.HashMap ByteArray 
     all_goals exact (Except.ok ())
   case datapath =>
     all_goals exact (Except.ok ())
-  case string =>
-    all_goals exact (Except.ok ())
+  case string op =>
+    cases op
+    case new => exact (StringNewProperties.fromAttrDict attrDict)
   case felt op =>
     cases op
     case const => exact (FeltConstProperties.fromAttrDict attrDict)
@@ -150,6 +153,8 @@ def Properties.toAttrDict (opCode : OpCode) (props : propertiesOf opCode) :
     (Std.HashMap.emptyWithCapacity 2).insert "value".toUTF8 (Attribute.integerAttr props.value)
   | .felt .const =>
     (Std.HashMap.emptyWithCapacity 2).insert "value".toUTF8 (Attribute.integerAttr props.value)
+  | .string .new =>
+    (Std.HashMap.emptyWithCapacity 2).insert "value".toUTF8 (Attribute.stringAttr props.value)
   | .arith .addi | .arith .subi | .arith .muli | .arith .shli | .arith .trunci
   | .llvm .add | .llvm .sub | .llvm .mul | .llvm .shl | .llvm .trunc => Id.run do
     let mut dict := Std.HashMap.emptyWithCapacity 2
