@@ -66,6 +66,8 @@ def Properties.fromAttrDict (opCode : OpCode) (attrDict : Std.HashMap ByteArray 
   case «include» op =>
     cases op
     case «from» => exact (IncludeFromProperties.fromAttrDict attrDict)
+  case ram =>
+    all_goals exact (Except.ok ())
   case felt op =>
     cases op
     case const => exact (FeltConstProperties.fromAttrDict attrDict)

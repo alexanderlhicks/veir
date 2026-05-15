@@ -247,6 +247,12 @@ inductive Include_ where
 deriving Inhabited, Repr, Hashable, DecidableEq
 
 @[opcodes]
+inductive Ram where
+| load
+| store
+deriving Inhabited, Repr, Hashable, DecidableEq
+
+@[opcodes]
 inductive Datapath where
 | compress
 | partial_product

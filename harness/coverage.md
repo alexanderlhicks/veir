@@ -27,7 +27,7 @@ document for the protocol.
 | `include` | ✅ Supported | `include.from` round-trips with typed `IncludeFromProperties { sym_name : FlatSymbolRefAttr, path : StringAttr }`. `HasParent<ModuleOp>` trait **not encoded** — VEIR will accept the op anywhere, not just as a direct child of a module. `Symbol` trait semantics (uniqueness, lookup) **not encoded**. |
 | `string` | ✅ Supported | Round-trips through `veir-opt`. One op (`string.new`), one type (`!string.type`). Custom assembly format (`%0 = string.new "x"`) **not supported** — generic form only. `Pure`, `ConstantLike`, `hasFolder` traits **not encoded**. |
 | `cast` | ❌ Unsupported | Planned Phase A.3. Depends on Felt. `InferTypeOpInterface` semantics will not be encoded. |
-| `ram` | ❌ Unsupported | Planned Phase A.4. Memory-effect traits (`MemRead`, `MemWrite`) **will not be encoded** — round-trip only. |
+| `ram` | ✅ Supported | `ram.load` and `ram.store` round-trip with typed shape checks. Uses `index` and `!felt.type`. **Not encoded**: `MemRead`/`MemWrite` memory effects, `WitnessGen` trait — VEIR treats both ops as pure. |
 | `bool` | ❌ Unsupported | Planned Phase A.5 (basic 5 ops) + Phase D.4 (`bool.cmp`). |
 | `constrain` (no `emit.in`) | ❌ Unsupported | Planned Phase A.6. `emit.in` requires `Array` types (containment check) — deferred to post-Phase D. `ConstraintOpInterface` will be a marker only, no semantic checks. |
 | `global` | ❌ Unsupported | Planned Phase D.1. Blocked on `SymbolRefAttr` infrastructure (Phase C). |

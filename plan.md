@@ -27,6 +27,8 @@ to be maintained as work progresses, not written once.
 | Felt dialect (18 ops, `!felt.type`) | ✅ ported (round-trip, generic format) | `LLZK_PORT_RETRO.md`, `Test/LLZK/Felt/identity.mlir` |
 | String dialect (`string.new`, `!string.type`) | ✅ ported (round-trip, generic format) | `Test/LLZK/String/identity.mlir` |
 | Include dialect (`include.from`) | ✅ ported (typed, with typed-path negative test) | `Test/LLZK/Include/{identity,invalid}.mlir` |
+| RAM dialect (`ram.load`, `ram.store`) | ✅ ported (typed) | `Test/LLZK/RAM/{identity,invalid}.mlir` |
+| `index` type | ✅ added inline as infra during A.4 | `Veir/IR/Attribute.lean` |
 | Per-dialect attribute parser | ❌ none in VEIR (workaround: `IntegerAttr`) | `harness/coverage.md` §Attributes |
 | Symbol references (`@name`) | ❌ no `SymbolRefAttr` case in `Attribute` | `harness/coverage.md` §Symbols |
 | `AffineMapAttr` | ❌ unrepresented | `harness/coverage.md` §AffineMap |
@@ -54,7 +56,7 @@ In dependency order:
 - [x] **A.1 Include** — symbol *producer*; uses upstream `FlatSymbolRefAttr` (PR #533). Done 2026-05-15: 251 build / 301 lit / clean test. Includes a `Test/LLZK/Include/invalid.mlir` negative test that proves the typed verifier path is reached (defense against Gotcha 2, which is *worse* post-upstream-PR #569).
 - [x] **A.2 String** — single op, single param-less type. Done 2026-05-15: 213 build / 265 lit / clean test.
 - [ ] **A.3 Cast** — Felt-dependent, no new infra (1× Felt)
-- [ ] **A.4 RAM** — Felt-dependent, no new infra (0.5× Felt)
+- [x] **A.4 RAM** — Felt-dependent, plus `index` type infra. Done 2026-05-15.
 - [ ] **A.5 Bool (basic)** — 5 of 6 ops; `bool.cmp` deferred (0.7× Felt). Enum stored as `IntegerAttr`.
 - [ ] **A.6 Constrain (no `emit.in`)** — uses `ConstraintOpInterface`; `emit.in` requires Array types and is deferred (0.5× Felt)
 
