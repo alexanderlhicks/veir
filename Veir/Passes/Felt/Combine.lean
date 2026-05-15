@@ -68,12 +68,46 @@ def self_subtraction_to_zero (rewriter : PatternRewriter OpCode) (op : Operation
     #[resultType] #[] #[] #[] cstProp (some <| .before op) sorry sorry sorry sorry
   rewriter.replaceOp op newOp sorry sorry sorry sorry sorry
 
+set_option warn.sorry false in
+/--
+  felt.add (felt.add x c1) c2  ->  felt.add x (c1+c2)
+  when c1 and c2 are felt.const literals.
+
+  Doesn't require dominance reasoning beyond what `getDefiningOp!`
+  provides: the inner add's operands and the outer constant are
+  visible from the outer add's match, and we replace the outer add
+  in-place (no SSA value is referenced before defined).
+-/
+def assoc_const_fold_add (rewriter : PatternRewriter OpCode) (op : OperationPtr) :
+    Option (PatternRewriter OpCode) := do
+  let some (innerVal, c2Val, _) := matchAdd op rewriter.ctx | return rewriter
+  -- Outer add's rhs must be a constant.
+  let some c2 := matchConstFromValue c2Val rewriter.ctx | return rewriter
+  -- Outer add's lhs must be the result of another felt.add (x + c1).
+  let some (x, c1Val, _) := matchAddFromValue innerVal rewriter.ctx | return rewriter
+  -- Inner add's rhs must be a constant.
+  let some c1 := matchConstFromValue c1Val rewriter.ctx | return rewriter
+  -- Build the combined constant (c1+c2) and create a fresh add.
+  let combinedVal := c1.value.value + c2.value.value
+  let combinedCst : FeltConstProperties :=
+    { value := { value := combinedVal, type := c1.value.type } }
+  let resultType := x.getType! rewriter.ctx.raw
+  let (rewriter, combinedConstOp) ← rewriter.createOp (OpCode.felt Felt.const)
+    #[resultType] #[] #[] #[] combinedCst (some <| .before op) sorry sorry sorry sorry
+  -- The new add's RHS is the combined constant we just created.
+  let combinedConstVal : ValuePtr := .opResult ⟨combinedConstOp, 0⟩
+  let (rewriter, newAdd) ← rewriter.createOp (OpCode.felt Felt.add)
+    #[resultType] #[x, combinedConstVal] #[] #[] ()
+    (some <| .before op) sorry sorry sorry sorry
+  rewriter.replaceOp op newAdd sorry sorry sorry sorry sorry
+
 /-! # Pass implementation -/
 
 def Combine.impl (ctx : WfIRContext OpCode) (op : OperationPtr) (_ : op.InBounds ctx.raw) :
     ExceptT String IO (WfIRContext OpCode) := do
   let pattern := RewritePattern.GreedyRewritePattern
-    #[right_identity_zero_add, constant_fold_add, self_subtraction_to_zero]
+    #[right_identity_zero_add, constant_fold_add, self_subtraction_to_zero,
+      assoc_const_fold_add]
   match RewritePattern.applyInContext pattern ctx with
   | none => throw "Error while applying felt-combine pattern rewrites"
   | some ctx => pure ctx

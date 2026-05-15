@@ -50,4 +50,15 @@ theorem self_subtraction_to_zero (x : Felt) :
     sub x x = const 0 := by
   simp [sub, const]
 
+/--
+  `felt.add (felt.add x c1) c2 = felt.add x (c1 + c2)`. Soundness of
+  `assoc_const_fold_add` in `Veir/Passes/Felt/Combine.lean`.
+
+  Lifts to `ZMod p` because associativity of `+` is preserved by every
+  ring homomorphism.
+-/
+theorem assoc_const_fold_add (x : Felt) (c1 c2 : Int) :
+    add (add x (const c1)) (const c2) = add x (const (c1 + c2)) := by
+  simp [add, const, Int.add_assoc]
+
 end Veir.Data.Felt

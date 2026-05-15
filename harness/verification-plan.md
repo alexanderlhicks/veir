@@ -117,7 +117,11 @@ real question opens up.
 
 ### Pilot 4 (stretch): `felt.add (felt.add x c1) c2 → felt.add x (c1+c2)` (associativity-driven canonicalization)
 
-**Status**: 🚧 stretch goal.
+**Status**: ✅ landed 2026-05-15. The dominance-light reasoning the
+spike worried about turned out to be subsumed by `getDefiningOp!` —
+the inner add and its constant are visible from the outer add's
+match, and we replace the outer add in place (no SSA reference-before-
+def issue).
 
 **Theorem**: `(x + c₁) + c₂ = x + (c₁ + c₂)` over a commutative ring.
 Provable but the rewriter side requires looking at the defining op of

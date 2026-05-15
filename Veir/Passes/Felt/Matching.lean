@@ -28,4 +28,11 @@ def matchConstFromValue (val : ValuePtr) (ctx : IRContext OpCode) :
   let .opResult opResultPtr := val | none
   matchConst opResultPtr.op ctx
 
+/-- Follow a ValuePtr to its defining `felt.add` op and return its
+    operands + properties. -/
+def matchAddFromValue (val : ValuePtr) (ctx : IRContext OpCode) :
+    Option (ValuePtr × ValuePtr × propertiesOf (OpCode.felt Felt.add)) := do
+  let .opResult opResultPtr := val | none
+  matchAdd opResultPtr.op ctx
+
 end Veir.FeltPass
