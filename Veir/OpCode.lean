@@ -265,6 +265,7 @@ inductive Bool_ where
 | xor
 | not
 | assert
+| cmp
 deriving Inhabited, Repr, Hashable, DecidableEq
 
 @[opcodes]

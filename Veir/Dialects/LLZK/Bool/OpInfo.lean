@@ -13,6 +13,7 @@ public section
 def Bool_.propertiesOf (op : Bool_) : Type :=
 match op with
 | .assert => BoolAssertProperties
+| .cmp => BoolCmpProperties
 | _ => Unit
 
 instance : HasDialectOpInfo Bool_ where

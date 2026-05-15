@@ -29,7 +29,7 @@ to be maintained as work progresses, not written once.
 | Include dialect (`include.from`) | ✅ ported (typed, with typed-path negative test) | `Test/LLZK/Include/{identity,invalid}.mlir` |
 | RAM dialect (`ram.load`, `ram.store`) | ✅ ported (typed) | `Test/LLZK/RAM/{identity,invalid}.mlir` |
 | Cast dialect (`cast.tofelt`, `cast.toindex`) | ✅ ported (typed) | `Test/LLZK/Cast/{identity,invalid}.mlir` |
-| Bool dialect basic (and/or/xor/not/assert) | ⚠️ partial (bool.cmp deferred) | `Test/LLZK/Bool/{identity,invalid}.mlir` |
+| Bool dialect (and/or/xor/not/assert/cmp) | ✅ ported (cmp via IntegerAttr enum workaround) | `Test/LLZK/Bool/{identity,invalid,cmp,cmp_invalid}.mlir` |
 | Constrain dialect (eq only) | ⚠️ partial (constrain.in deferred) | `Test/LLZK/Constrain/{identity,invalid}.mlir` |
 | Global dialect (def, read, write) | ✅ ported (typed; uses FlatSymbolRefAttr) | `Test/LLZK/Global/{identity,invalid}.mlir` |
 | First verified LLZK pass | ✅ Phase E.1 — `felt-combine` proves `felt.add x (felt.const 0) → x` | `Veir/Passes/Felt/{Combine,Proofs}.lean` |
@@ -109,7 +109,7 @@ follow-on commit on the same branch.
 - [x] **D.1 Global** — uses upstream `FlatSymbolRefAttr`. Done 2026-05-15. Validated that retiring Phase B was correct: no symbol-table machinery needed for round-trip.
 - [ ] **D.2 POD** — uses C.2 + C.3
 - [ ] **D.3 Array** (types + non-symbol ops) — uses C.2 + C.3
-- [ ] **D.4 Bool full** — adds `bool.cmp` (uses C.4 if enum parser; else stays on `IntegerAttr`)
+- [x] **D.4 Bool full** — `bool.cmp` ported via the IntegerAttr-as-enum workaround (Phase C.3 enum-parser deferred indefinitely; the workaround suffices). Done 2026-05-15.
 
 ### Phase E — Verification pilot 1: Felt local rewrite (≈2 weeks)
 

@@ -77,6 +77,7 @@ def Properties.fromAttrDict (opCode : OpCode) (attrDict : Std.HashMap ByteArray 
   case bool op =>
     cases op
     case assert => exact (BoolAssertProperties.fromAttrDict attrDict)
+    case cmp => exact (BoolCmpProperties.fromAttrDict attrDict)
     all_goals exact (Except.ok ())
   case constrain =>
     all_goals exact (Except.ok ())
@@ -199,6 +200,8 @@ def Properties.toAttrDict (opCode : OpCode) (props : propertiesOf opCode) :
     match props.msg with
     | some m => (Std.HashMap.emptyWithCapacity 1).insert "msg".toUTF8 (Attribute.stringAttr m)
     | none => Std.HashMap.emptyWithCapacity 0
+  | .bool .cmp =>
+    (Std.HashMap.emptyWithCapacity 1).insert "predicate".toUTF8 (Attribute.integerAttr props.predicate)
   | .global .«def» => Id.run do
     let mut dict := Std.HashMap.emptyWithCapacity 4
     dict := dict.insert "sym_name".toUTF8 (Attribute.flatSymbolRefAttr props.sym_name)

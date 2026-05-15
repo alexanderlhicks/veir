@@ -31,6 +31,58 @@ instance for new types exists, printing is automatic.
 
 ---
 
+## 2026-05-15 — Pattern: enum attributes via the IntegerAttr workaround
+
+**Discovery (Phase D.4 — bool.cmp)**: LLZK uses `I32EnumAttr` for
+enum-valued op attributes (`FeltCmpPredicate` with cases
+`eq=0, ne=1, lt=2, le=3, gt=4, ge=5`). The custom assembly form is
+`#bool<eq>`; the generic-form is `<{predicate = 0 : i32}>` (an
+i32 `IntegerAttr` carrying the enum's underlying integer value).
+
+VEIR has no per-dialect attribute parser for `#dialect<case>`, but
+the generic form is already `IntegerAttr`. So the workaround:
+
+```lean
+-- In Veir/Dialects/LLZK/<Dialect>/Properties.lean:
+structure XxxCmpProperties where
+  predicate : IntegerAttr
+deriving Inhabited, Repr, Hashable, DecidableEq
+
+def XxxCmpProperties.fromAttrDict (attrDict : Std.HashMap ByteArray Attribute) :
+    Except String XxxCmpProperties := do
+  if attrDict.size > 1 then
+    throw s!"xxx.cmp: expected only 'predicate' property"
+  let some attr := attrDict["predicate".toUTF8]?
+    | throw "xxx.cmp: missing 'predicate' property"
+  let .integerAttr intAttr := attr
+    | throw s!"xxx.cmp: predicate must be an integer attribute (enum workaround)"
+  -- Range-check against the enum's case count.
+  if intAttr.value < 0 ∨ intAttr.value > 5 then
+    throw s!"xxx.cmp: 'predicate' out of range 0..5"
+  return { predicate := intAttr }
+```
+
+**Two caveats to record in `harness/coverage.md`**:
+
+1. **The printed form differs from LLZK** (`= 0 : i32` vs `= #bool<eq>`).
+   IR-level value preserved; textual form is VEIR-flavored.
+2. **No symbolic name in the IR.** Pattern matches against the
+   predicate use the integer constant (e.g., `if pred.value = 0` for
+   `eq`), not a symbolic case name.
+
+**When to upgrade to a real per-dialect enum parser**: when a verified
+pass needs to pattern-match symbolically (`match predicate with | .eq => ...`)
+*and* the `Int.value`-based dispatch becomes awkward. For now, the
+IntegerAttr workaround suffices for round-trip and verifier shape
+checks.
+
+**Use this pattern**: Bool.cmp ✓ (Phase D.4). Future candidates:
+Comb predicates, any LLZK dialect with a fixed-set enum. Always
+pair the workaround with a range check at `fromAttrDict` to catch
+out-of-band values.
+
+---
+
 ## 2026-05-15 — Pattern: pass namespace collides with dialect inductive name
 
 **Discovery (Phase E.1 — first verified Felt pass)**: `inductive Felt`
