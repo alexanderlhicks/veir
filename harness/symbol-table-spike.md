@@ -25,9 +25,12 @@ integrity.
 
 **Pointer**: see `plan.md` §Phase F for the consolidated design scope.
 
-This is a placeholder + framing doc. The actual design work is the
-next concrete action item; this document records the question, the
-inputs to consider, and what the output should look like.
+The remainder of this doc preserves the original question + framing
+as a reference for when Phase F engages. **Treat it as historical
+context, not an active task list** — the "next concrete action item"
+language below should be read as "the next concrete action item *when
+Phase F starts*". The retirement banner above takes precedence over
+the active-spike framing throughout.
 
 ---
 

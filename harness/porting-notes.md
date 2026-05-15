@@ -31,6 +31,107 @@ instance for new types exists, printing is automatic.
 
 ---
 
+## 2026-05-15 — Pattern: pass namespace collides with dialect inductive name
+
+**Discovery (Phase E.1 — first verified Felt pass)**: `inductive Felt`
+lives at `Veir.Felt` (registered by `@[opcodes]` in `Veir/OpCode.lean`).
+A peer pass module `namespace Veir.Felt` would shadow it, so every
+`OpCode.felt _` dot-notation reference becomes ambiguous and elaboration
+fails (`Unknown constant Veir.Felt.felt`).
+
+Resolution: name pass namespaces with a distinct suffix —
+`Veir.FeltPass`, `Veir.BoolPass`, `Veir.ConstrainPass`, etc. — and use
+fully-qualified `OpCode.felt Felt.add` / `OpCode.felt Felt.const`
+inside the matcher helpers, not the `.felt .add` shorthand. See
+`Veir/Passes/Felt/{Matching,Combine}.lean` for the established pattern.
+
+**Applies to**: any future pass on Bool, Constrain, Include, Global,
+RAM, Cast — i.e. every dialect whose inductive shares its bare name
+with the dialect's mnemonic (which is *all* of them in this fork's
+naming scheme).
+
+**Why not just use the dialect inductive's namespace** (e.g. add the
+pass to `Veir.Felt`)? It works at the cost of fully-qualifying every
+opcode reference. `Veir.<Dialect>Pass` keeps the dot-notation idiom
+working without sacrificing clarity.
+
+---
+
+## 2026-05-15 — Pattern: provisional `Felt := Int` semantic model
+
+**Discovery (Phase E.1)**: Building a verified peephole rewrite needs
+*some* semantic model for the data. Felt's true semantics is `ZMod p`
+for various `p`, but threading the modulus through proofs is
+unnecessary for identities like `x + 0 = x` that hold under *any*
+ring homomorphism.
+
+Recipe (see `Veir/Data/Felt/Basic.lean`):
+
+```lean
+abbrev Felt := Int           -- `abbrev` inherits all Int instances
+def const (n : Int) : Felt := n
+def add (a b : Felt) : Felt := a + b
+```
+
+Pair with `Veir/Passes/<Dialect>/Proofs.lean`:
+
+```lean
+theorem right_identity_zero_add (lhs : Felt) :
+    add lhs (const 0) = lhs := by simp [add, const]
+```
+
+**Lift argument**: any identity proved over `Int` that's of the form
+*p(x) = q(x)* where both `p` and `q` are polynomial expressions in
+the inputs and ring constants 0/1 lifts to any `ZMod p` model via the
+canonical ring homomorphism `ℤ → ZMod p`. This covers `x + 0 = x`,
+`x + (-x) = 0`, `x * 1 = x`, `x - x = 0`, etc. — exactly the kind of
+peephole each pilot in `harness/verification-plan.md` targets.
+
+**Doesn't lift**: anything that uses field-specific structure (inverse
+of nonzero elements, ordering, divisibility, characteristic). Upgrade
+to a real `ZMod p` model when a pass needs those.
+
+**Use this pattern**: `Veir/Data/<Dialect>/Basic.lean` for any
+dialect whose ops form a commutative ring or group. The `abbrev`
+form (not `def`) is required so Lean's instance resolution finds
+`Add`/`Mul`/etc. without explicit instances.
+
+---
+
+## 2026-05-15 — Gotcha: differential allowlist is fixed-string and unscoped
+
+**Discovery (Phase A differential harness)**: `scripts/llzk-diff.sh`'s
+allowlist applies fixed-string substitutions globally to each line of
+both files before diffing. **Rules are not scoped to specific ops or
+contexts.**
+
+Concretely: a Felt rule
+```
+"<{value = 42 : i256}>" -> "<{value = #felt.const<42>}>"
+```
+would *also* rewrite any unrelated op with the same attribute
+fragment (e.g. an `arith.constant` of value 42). Today's tests are
+single-dialect so this is harmless; mixed-dialect tests would need
+scoping.
+
+**How to apply**: when writing an allowlist entry, **include enough
+surrounding context to make the from-pattern unique to the op the
+divergence applies to**. For Felt:
+```
+'%{{[^ ]+}} = "felt.const"() <{value = 42 : i256}>' -> '...'
+```
+(Note: the script does fixed-string match, not regex, so use the
+literal `%5 = ...` form from a captured output, or use the normalizer
+to stabilize the SSA names first — see the script's stage-3
+normalization.)
+
+Also: the allowlist grammar is `"from" -> "to"` (line-literal). Quote
+characters inside `from`/`to` aren't escaped — the regex stops at the
+first inner `"`. Document the limitation per rule, or avoid embedded
+quotes by widening context.
+
+---
+
 ## 2026-05-15 — Pattern: optional-attr property fields (`Option StringAttr`)
 
 **Discovery (Phase A.5 — Bool.assert)**: The first ported op with an

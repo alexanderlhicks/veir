@@ -14,12 +14,14 @@
 }) : () -> ()
 
 // The first felt.add disappears (its result is replaced by %a); the
-// second one stays because its rhs is felt.const 1, not 0.
+// second one stays because its rhs is felt.const 1, not 0. Note the
+// CHECK-NEXT chain implicitly asserts no extra `"felt.add"` lines
+// between the surviving add and the closing brace — i.e. only one
+// felt.add survives, as the soundness theorem
+// (Veir/Passes/Felt/Proofs.lean) requires.
 //
 // CHECK:        "builtin.module"() ({
 // CHECK:          %{{[^ ]+}} = "felt.const"() <{"value" = 0 : i256}> : () -> !felt.type
 // CHECK-NEXT:     %{{[^ ]+}} = "felt.const"() <{"value" = 1 : i256}> : () -> !felt.type
 // CHECK-NEXT:     %{{[^ ]+}} = "felt.add"(%{{[^,]+}}, %{{[^)]+}}) : (!felt.type, !felt.type) -> !felt.type
 // CHECK-NEXT:   }) : () -> ()
-// Only one felt.add survives (the matching-on-zero one was rewritten).
-// CHECK-NOT:    "felt.add"

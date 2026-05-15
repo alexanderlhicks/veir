@@ -5,19 +5,19 @@ implementation of an LLZK dialect and LLZK's own C++ implementation.
 
 **Status**: scaffold complete. Hardened script + per-dialect tests
 land at `scripts/llzk-diff.sh` and `Test/LLZK/<dialect>/differential/`
-(7 inputs, 1 allowlist for the Felt IntegerAttr divergence).
-Running the diffs requires a local build of `llzk-opt` (see §3.1).
-Tests carry `// REQUIRES: llzk-opt` and lit auto-skips them as
-`UNSUPPORTED` when the binary is missing — the suite stays green on
-hosts without LLZK built.
+(8 inputs as of 2026-05-15: 7 Tier-1 + 1 Tier-2 Global; 1 allowlist for
+the Felt IntegerAttr divergence). Running the diffs requires a local
+build of `llzk-opt` (see §3.1). Tests carry `// REQUIRES: llzk-opt`
+and lit auto-skips them as `UNSUPPORTED` when the binary is missing —
+the suite stays green on hosts without LLZK built.
 
-**Smoke check** (current host without llzk-opt):
+**Smoke check** (host without llzk-opt; full lit suite):
 ```
-$ uv run lit Test/LLZK/ -v
+$ uv run lit Test/ -v
 …
-Total Discovered Tests: 21
-  Unsupported:   7 (33.33%)   ← differential tests
-  Passed     : 14 (66.67%)   ← identity + invalid pairs
+Total Discovered Tests: 322
+  Unsupported:   8 (2.48%)   ← differential tests
+  Passed     : 314 (97.52%)
 ```
 
 ---
@@ -90,8 +90,21 @@ that documents the divergence:
 "#felt.const<42>" -> "42 : i256"   (coverage.md §Attributes:#felt.const)
 ```
 
-Diff that matches an allowlist entry is downgraded to a warning, not
-a failure. Anything not on the list is a hard fail.
+The rule is matched as a **fixed string** (no regex) and applied
+**globally to every line of both normalized files** before the diff.
+Two implications:
+
+- **Rules are not scoped to a specific op.** A rule like
+  `"<{value = 42 : i256}>"` would also rewrite the same fragment if
+  it appeared on an unrelated op. Write the `from` side with enough
+  surrounding context (op mnemonic, attribute name) to make it unique.
+- **Quotes inside `from`/`to` aren't escaped.** The parser's regex
+  stops at the first inner `"`. If a rule needs an embedded `"`,
+  widen the context to avoid the embedded quote rather than escape it.
+
+Diff lines that survive normalization + allowlist substitution are a
+hard fail. The allowlist is for *documented* divergences only — new
+allowlist entries must reference a coverage row.
 
 ---
 
@@ -203,7 +216,8 @@ its `identity.mlir` passes. The rollout order:
 | Cast | ✅ scaffolded | `differential/casts.mlir`. No known divergences. |
 | Bool | ✅ scaffolded | `differential/logical.mlir`. Excludes `bool.cmp` (deferred). |
 | Constrain | ✅ scaffolded | `differential/eq.mlir`. `constrain.in` deferred (Phase D.3). |
-| Global, Function, Struct | (after port) | Wait for Tier 3. |
+| Global | ✅ scaffolded | `differential/def_read_write.mlir`. Exercises FlatSymbolRefAttr in both producer (`sym_name`) and user (`name_ref`) roles. No known divergences. |
+| Function, Struct | (after port) | Wait for Tier 3. |
 
 Each dialect gets a directory:
 

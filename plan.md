@@ -208,8 +208,8 @@ Three rules:
 ## Iteration commands (unchanged from Felt)
 
 ```bash
-lake build                       # 207/207 currently
-lake test                        # UnitTest target
-uv run lit Test/ -v              # 264/264 currently
-uv run lit Test/<Dialect>/identity.mlir -v
+lake build                       # 267/267 as of 2026-05-15
+lake test                        # UnitTest target — 110 jobs, clean
+uv run lit Test/ -v              # 322/322 (314 pass + 8 UNSUPPORTED differential)
+uv run lit Test/LLZK/<Dialect>/identity.mlir -v
 ```

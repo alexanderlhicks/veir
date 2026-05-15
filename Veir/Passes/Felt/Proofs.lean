@@ -22,6 +22,10 @@ namespace Veir.Data.Felt
 -/
 theorem right_identity_zero_add (lhs : Felt) :
     add lhs (const 0) = lhs := by
-  simp [add, const, Felt]
+  -- `Felt` is `abbrev Felt := Int` so it's reducible by default; only
+  -- the wrapper functions need to be unfolded. The remaining goal is
+  -- `lhs + 0 = lhs`, discharged by `Int.add_zero` via simp's default
+  -- simp set.
+  simp [add, const]
 
 end Veir.Data.Felt

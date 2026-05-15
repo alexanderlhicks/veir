@@ -191,7 +191,7 @@ opcodes that implement the interface.
 
 | Capability | Status | Caveats |
 |---|---|---|
-| FileCheck lit suite | ✅ | 264/264. Felt has `Test/Felt/identity.mlir`. Per-dialect identity tests are the round-trip forcing function. |
+| FileCheck lit suite | ✅ | 322/322 as of 2026-05-15 (314 PASS + 8 UNSUPPORTED — the 8 are the differential tests skipped until `llzk-opt` is on `$PATH`). Per-dialect identity + invalid tests live under `Test/LLZK/<dialect>/`. |
 | Unit tests (`lake test`) | ✅ | UnitTest target, 40/40. No Lean-level unit tests programmatically constructing and matching on LLZK `Attribute` cases (would catch Gotcha 2 from the Felt retro). |
 | `veir-opt` CLI | ✅ | Single binary, parses and re-prints. Pass pipeline via `-p`. |
 | Benchmarks | ⚠️ | `RunBenchmarks.lean` exists; not currently exercised by LLZK code. |
