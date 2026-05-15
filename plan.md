@@ -30,6 +30,7 @@ to be maintained as work progresses, not written once.
 | RAM dialect (`ram.load`, `ram.store`) | ✅ ported (typed) | `Test/LLZK/RAM/{identity,invalid}.mlir` |
 | Cast dialect (`cast.tofelt`, `cast.toindex`) | ✅ ported (typed) | `Test/LLZK/Cast/{identity,invalid}.mlir` |
 | Bool dialect basic (and/or/xor/not/assert) | ⚠️ partial (bool.cmp deferred) | `Test/LLZK/Bool/{identity,invalid}.mlir` |
+| Constrain dialect (eq only) | ⚠️ partial (constrain.in deferred) | `Test/LLZK/Constrain/{identity,invalid}.mlir` |
 | `index` type | ✅ added inline as infra during A.4 | `Veir/IR/Attribute.lean` |
 | Per-dialect attribute parser | ❌ none in VEIR (workaround: `IntegerAttr`) | `harness/coverage.md` §Attributes |
 | Symbol references (`@name`) | ❌ no `SymbolRefAttr` case in `Attribute` | `harness/coverage.md` §Symbols |
@@ -60,7 +61,7 @@ In dependency order:
 - [x] **A.3 Cast** — Felt + index types (both in place). Done 2026-05-15.
 - [x] **A.4 RAM** — Felt-dependent, plus `index` type infra. Done 2026-05-15.
 - [x] **A.5 Bool (basic)** — 5 of 6 ops ported. `bool.cmp` deferred to Phase D.4. Done 2026-05-15.
-- [ ] **A.6 Constrain (no `emit.in`)** — uses `ConstraintOpInterface`; `emit.in` requires Array types and is deferred (0.5× Felt)
+- [x] **A.6 Constrain (eq only)** — `constrain.eq` ported. `constrain.in` deferred to Phase D.3 (Array types). Done 2026-05-15.
 
 Acceptance: each dialect has a `Test/<Dialect>/identity.mlir`, full lit
 suite green, build clean, `harness/coverage.md` row updated.

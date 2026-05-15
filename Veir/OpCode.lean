@@ -268,6 +268,12 @@ inductive Bool_ where
 deriving Inhabited, Repr, Hashable, DecidableEq
 
 @[opcodes]
+inductive Constrain where
+| eq
+-- `in` deferred until Array types land (Phase D.3).
+deriving Inhabited, Repr, Hashable, DecidableEq
+
+@[opcodes]
 inductive Datapath where
 | compress
 | partial_product

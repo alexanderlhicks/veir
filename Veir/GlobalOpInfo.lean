@@ -76,6 +76,8 @@ def Properties.fromAttrDict (opCode : OpCode) (attrDict : Std.HashMap ByteArray 
     cases op
     case assert => exact (BoolAssertProperties.fromAttrDict attrDict)
     all_goals exact (Except.ok ())
+  case constrain =>
+    all_goals exact (Except.ok ())
   case felt op =>
     cases op
     case const => exact (FeltConstProperties.fromAttrDict attrDict)
