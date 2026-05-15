@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1777909195802,
+  "lastUpdate": 1778861969836,
   "repoUrl": "https://github.com/alexanderlhicks/veir",
   "entries": {
     "VeIR Benchmarks": [
@@ -468,6 +468,162 @@ window.BENCHMARK_DATA = {
             "value": 778000,
             "unit": "ns",
             "extra": "count=1000 pc=100 iterations=5 median_rewrite=0.000778s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "georgerennie@gmail.com",
+            "name": "George Rennie",
+            "username": "georgerennie"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "3663d6ee62b16be32a33bca9edabafa567283058",
+          "message": "Test: tidy some testcases to pass MLIR verification (#575)\n\nThis fixes some of the testcases up so that they don't fail verification\nin MLIR which makes it slightly easier to compare parser behaviour with\nMLIR when modifying the tests.",
+          "timestamp": "2026-05-15T14:01:38Z",
+          "tree_id": "0b92b54f726f340a6a9066ee0e6b32e2de76fe04",
+          "url": "https://github.com/alexanderlhicks/veir/commit/3663d6ee62b16be32a33bca9edabafa567283058"
+        },
+        "date": 1778861951063,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "add-fold-worklist/create",
+            "value": 2205000,
+            "unit": "ns",
+            "extra": "count=1000 pc=100 iterations=5 median_create=0.002205s"
+          },
+          {
+            "name": "add-fold-worklist/rewrite",
+            "value": 3866000,
+            "unit": "ns",
+            "extra": "count=1000 pc=100 iterations=5 median_rewrite=0.003866s"
+          },
+          {
+            "name": "add-fold-worklist-local/create",
+            "value": 2674000,
+            "unit": "ns",
+            "extra": "count=1000 pc=100 iterations=5 median_create=0.002674s"
+          },
+          {
+            "name": "add-fold-worklist-local/rewrite",
+            "value": 3251000,
+            "unit": "ns",
+            "extra": "count=1000 pc=100 iterations=5 median_rewrite=0.003251s"
+          },
+          {
+            "name": "add-zero-worklist/create",
+            "value": 2580000,
+            "unit": "ns",
+            "extra": "count=1000 pc=100 iterations=5 median_create=0.002580s"
+          },
+          {
+            "name": "add-zero-worklist/rewrite",
+            "value": 2717000,
+            "unit": "ns",
+            "extra": "count=1000 pc=100 iterations=5 median_rewrite=0.002717s"
+          },
+          {
+            "name": "add-zero-reuse-worklist/create",
+            "value": 2291000,
+            "unit": "ns",
+            "extra": "count=1000 pc=100 iterations=5 median_create=0.002291s"
+          },
+          {
+            "name": "add-zero-reuse-worklist/rewrite",
+            "value": 2225000,
+            "unit": "ns",
+            "extra": "count=1000 pc=100 iterations=5 median_rewrite=0.002225s"
+          },
+          {
+            "name": "mul-two-worklist/create",
+            "value": 2517000,
+            "unit": "ns",
+            "extra": "count=1000 pc=100 iterations=5 median_create=0.002517s"
+          },
+          {
+            "name": "mul-two-worklist/rewrite",
+            "value": 5702000,
+            "unit": "ns",
+            "extra": "count=1000 pc=100 iterations=5 median_rewrite=0.005702s"
+          },
+          {
+            "name": "add-fold-forwards/create",
+            "value": 2554000,
+            "unit": "ns",
+            "extra": "count=1000 pc=100 iterations=5 median_create=0.002554s"
+          },
+          {
+            "name": "add-fold-forwards/rewrite",
+            "value": 3113000,
+            "unit": "ns",
+            "extra": "count=1000 pc=100 iterations=5 median_rewrite=0.003113s"
+          },
+          {
+            "name": "add-zero-forwards/create",
+            "value": 2568000,
+            "unit": "ns",
+            "extra": "count=1000 pc=100 iterations=5 median_create=0.002568s"
+          },
+          {
+            "name": "add-zero-forwards/rewrite",
+            "value": 2058000,
+            "unit": "ns",
+            "extra": "count=1000 pc=100 iterations=5 median_rewrite=0.002058s"
+          },
+          {
+            "name": "add-zero-reuse-forwards/create",
+            "value": 2441000,
+            "unit": "ns",
+            "extra": "count=1000 pc=100 iterations=5 median_create=0.002441s"
+          },
+          {
+            "name": "add-zero-reuse-forwards/rewrite",
+            "value": 1658000,
+            "unit": "ns",
+            "extra": "count=1000 pc=100 iterations=5 median_rewrite=0.001658s"
+          },
+          {
+            "name": "mul-two-forwards/create",
+            "value": 2569000,
+            "unit": "ns",
+            "extra": "count=1000 pc=100 iterations=5 median_create=0.002569s"
+          },
+          {
+            "name": "mul-two-forwards/rewrite",
+            "value": 3858000,
+            "unit": "ns",
+            "extra": "count=1000 pc=100 iterations=5 median_rewrite=0.003858s"
+          },
+          {
+            "name": "add-zero-reuse-first/create",
+            "value": 2193000,
+            "unit": "ns",
+            "extra": "count=1000 pc=100 iterations=5 median_create=0.002193s"
+          },
+          {
+            "name": "add-zero-reuse-first/rewrite",
+            "value": 9000,
+            "unit": "ns",
+            "extra": "count=1000 pc=100 iterations=5 median_rewrite=0.000009s"
+          },
+          {
+            "name": "add-zero-lots-of-reuse-first/create",
+            "value": 2216000,
+            "unit": "ns",
+            "extra": "count=1000 pc=100 iterations=5 median_create=0.002216s"
+          },
+          {
+            "name": "add-zero-lots-of-reuse-first/rewrite",
+            "value": 827000,
+            "unit": "ns",
+            "extra": "count=1000 pc=100 iterations=5 median_rewrite=0.000827s"
           }
         ]
       }
