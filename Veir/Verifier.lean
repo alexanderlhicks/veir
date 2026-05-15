@@ -785,7 +785,7 @@ def OperationPtr.verifyLocalInvariants (op : OperationPtr) (ctx : WfIRContext Op
       throw "Expected 0 successors"
     pure ()
   /- STRING -/
-  | .string String_.new => do
+  | .string .new => do
     if op.getNumOperands ctx.raw opIn ≠ 0 then
       throw "Expected 0 operands"
     if op.getNumResults ctx.raw opIn ≠ 1 then
@@ -796,7 +796,7 @@ def OperationPtr.verifyLocalInvariants (op : OperationPtr) (ctx : WfIRContext Op
       throw "Expected 0 successors"
     pure ()
   /- INCLUDE -/
-  | .include Include_.from => do
+  | .include .«from» => do
     if op.getNumOperands ctx.raw opIn ≠ 0 then
       throw "Expected 0 operands"
     if op.getNumResults ctx.raw opIn ≠ 0 then

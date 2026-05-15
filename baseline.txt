@@ -31,3 +31,61 @@ It fails because `felt.const` is an unregistered op (parser falls back to
 
 Phase 0 complete: harness in place, forcing function failing for the right
 reason, rest of suite green.
+
+================================================================
+# Baseline at tier-1-complete
+# Branch: llzkfelt_test1, base: main @ 3663d6e (post-sync)
+# Date: 2026-05-15
+# Toolchain: Lean 4.31.0-nightly-2026-04-29 → nightly-2026-05-14 (bumped via upstream merge)
+
+## lake build
+
+CLEAN (255/255 targets).
+Gains since the prior 213-job baseline: +34 from upstream's new modules
+(HW dialect, FP/EDyadic/EScientificBV/ExtRat/State, FloatFormat, HW data
+layer, Bitblast / Simp for LLVM.Int, BlockArguments rewriter pieces,
+GetSetTactic) plus +8 from LLZK ports' per-dialect Properties/OpInfo
+files (Felt, String, Include, Bool — RAM/Cast/Constrain have no
+per-dialect files because their ops have no attributes).
+
+## lake test
+
+CLEAN. UnitTest target now 104 jobs (was 40; expanded by upstream
+Bitblasting and FP tests).
+
+## uv run lit Test/ -v
+
+310 of 310 pass. Gains since 263-baseline:
+  +34 from upstream's new lit tests (Interpreter poison cases,
+    LLVM.getelementptr/fastntt, HW/identity, Arith divsi/divui/rem*
+    edge cases, etc.)
+  +13 from LLZK Tier 1: 7 identity.mlir + 6 invalid.mlir (String
+    didn't have an invalid test until 2026-05-15)
+  Net total: 310
+
+## Coverage delta since baseline
+
+LLZK dialects (harness/coverage.md §Dialects):
+  felt        ❌ → ✅ (with caveats: traits, custom asm, #felt.const)
+  string      ❌ → ✅ (with caveats: traits, custom asm)
+  include     ❌ → ✅ (caveats: HasParent<ModuleOp>, Symbol traits)
+  ram         ❌ → ✅ (caveats: MemRead/MemWrite/WitnessGen)
+  cast        ❌ → ✅ (caveats: InferTypeOpInterface, type checks)
+  bool        ❌ → ⚠️ Partial (cmp deferred, traits not encoded)
+  constrain   ❌ → ⚠️ Partial (in deferred, ConstraintOpInterface,
+                ConstraintGen, traits not encoded)
+
+Infrastructure (harness/coverage.md §Symbols, §Types):
+  FlatSymbolRefAttr  ❌ → ✅ (upstream PR #533)
+  !string.type       ❌ → ✅
+  !felt.type         ❌ → ✅ (with caveats: name preserved, no field semantics)
+  index type         ❌ → ✅ (added inline during Phase A.4)
+
+Verification machinery (harness/coverage.md §Verification):
+  WfIRContext-based verifier  ❌ → ✅ (upstream restructure)
+  Unregistered op-name preservation  ❌ → ✅ (upstream PR #569)
+    NOTE: this *worsened* Gotcha 2 — typed-path negative tests
+    (Test/LLZK/<dialect>/invalid.mlir) are now mandatory for catch.
+
+Tags:
+  port-string-v1, port-include-v1, tier-1-complete

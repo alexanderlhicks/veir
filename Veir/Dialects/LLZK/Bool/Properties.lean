@@ -27,6 +27,10 @@ def BoolAssertProperties.fromAttrDict (attrDict : Std.HashMap ByteArray Attribut
     | some (.stringAttr m) => .ok (some m)
     | some attr => .error s!"bool.assert: expected 'msg' to be a string attribute, got {attr}"
     | none => .ok none
+  -- Catch the case `size = 1` with an unrecognized key (which would otherwise
+  -- silently coerce to `{ msg := none }`).
+  if attrDict.size = 1 ∧ msg.isNone then
+    throw "bool.assert: only 'msg' is a recognized property"
   return { msg := msg }
 
 end

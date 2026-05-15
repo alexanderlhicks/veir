@@ -31,6 +31,100 @@ instance for new types exists, printing is automatic.
 
 ---
 
+## 2026-05-15 — Pattern: optional-attr property fields (`Option StringAttr`)
+
+**Discovery (Phase A.5 — Bool.assert)**: The first ported op with an
+*optional* attribute. The shape of `fromAttrDict`:
+
+```lean
+let msg ← match attrDict["msg".toUTF8]? with
+  | some (.stringAttr m) => .ok (some m)
+  | some attr => .error s!"... expected 'msg' to be a string attribute, got {attr}"
+  | none => .ok none
+-- If size = 1 but msg is none, the key isn't 'msg'. Reject.
+if attrDict.size = 1 ∧ msg.isNone then
+  throw "...: only 'msg' is a recognized property"
+return { msg := msg }
+```
+
+**Why the `size = 1 ∧ isNone` check matters**: without it, an input like
+`<{foo = "x"}>` (one entry, unknown key) silently coerces to `{ msg := none }`
+instead of failing. The check makes the optional-field path as strict as the
+required-field paths in other dialects. Discovered during Tier-1 review.
+
+---
+
+## 2026-05-15 — Pattern: property-less dialects skip the per-dialect OpInfo file
+
+**Discovery (Phase A.3 Cast, A.4 RAM, A.6 Constrain)**: Three Tier-1 ports
+where no op carries attributes. The empirical pattern that emerged:
+
+1. **Do NOT** create `Veir/Dialects/LLZK/<Dialect>/{Properties,OpInfo}.lean`.
+2. **Do NOT** add a `propertiesOf` arm in `GlobalOpInfo.lean` — the central
+   wildcard `_ => Unit` handles it.
+3. **Do** add a single arm in `Properties.fromAttrDict`:
+   ```lean
+   case <dialect> =>
+     all_goals exact (Except.ok ())
+   ```
+4. **Do NOT** add an arm in `Properties.toAttrDict` — the central
+   `| _ => Std.HashMap.emptyWithCapacity 0` wildcard handles it.
+
+That's a 3-file shortcut. Saves clutter; doesn't impair anything.
+
+This is the right behavior for Cast (no attrs), RAM (no attrs),
+Constrain.eq (no attrs), and Datapath (an existing dialect that already
+uses this pattern). Captured in `harness/dialect-port-checklist.md`
+Phase 3.A.
+
+---
+
+## 2026-05-15 — Pattern: `«keyword»` escaping for Lean-keyword constructor names
+
+**Discovery (Phase A.1 Include)**: Op constructor names that collide
+with Lean keywords (`from`, `in`, ...) are accepted in the inductive
+declaration but need escaping at *use* sites:
+
+| Position | Escape required? | Example |
+|---|---|---|
+| Inductive ctor declaration | No | `inductive Include_ where \| from` |
+| Term-mode `match` pattern (`\| .x.y`) | No | `\| .include .from => do` |
+| Tactic-mode `case` arm | **Yes** | `case «from» => exact ...` |
+| Tactic-mode `match \| .x.y =>` pattern | **Yes** | `\| .include .«from» => do` |
+
+The rule: anywhere the dot-notation parser would consume `from` as a
+keyword token instead of as an identifier, escape with `«from»`.
+Term-mode positions are robust because the dotted path already
+disambiguates. Tactic-mode `case`/`match` positions aren't always.
+
+---
+
+## 2026-05-15 — Gotcha 4: Lean keywords as inductive / constructor names
+
+**Discovery (Phase A.1, A.5)**: LLZK dialects use names that collide
+with Lean's reserved keywords or built-in types:
+
+| Where | Conflict | Resolution |
+|---|---|---|
+| Dialect inductive name | `String`, `Bool`, `Array`, `Function` shadow Lean built-ins | Trailing underscore (`String_`, `Bool_`, ...) — the opcodes macro strips it for the dialect mnemonic |
+| Op constructor name | `from`, `include` are Lean keywords | Use as-is in the inductive (Lean accepts), but at *use* sites in `case` and `match` arms, wrap with `«...»` (French quotes): `case «include» op => ... | case «from» => ...` |
+
+The trailing-underscore strip is implemented in `Veir/Meta/OpCode.lean`
+(`Dialect.getName`); the keyword-escape is just Lean syntax. Both are
+mechanical once you know the pattern.
+
+**How to apply**: when porting a dialect, scan its TD constructor names
+for Lean keywords and the inductive name for Lean built-ins. Common
+hits: `from`, `to`, `if`, `let`, `do`, `in`, `match`, `with`, plus the
+type names listed above.
+
+**Future ports**: this will hit Function (constructor `function.return`
+uses keyword-safe `return`, but the dialect inductive `Function`
+collides — use `Function_`). Polymorphic, Array, Struct all need the
+trailing-underscore treatment for the dialect inductive.
+
+---
+
 ## 2026-05-15 — Gotcha 3: `Symbol`-trait ops still need `@name` parsing
 
 **Discovery (Phase A.1 attempt)**: The retro / dialect-catalog

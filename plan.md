@@ -56,12 +56,14 @@ generalizes. No new VEIR infrastructure beyond what Felt established.
 
 In dependency order:
 
-- [x] **A.1 Include** — symbol *producer*; uses upstream `FlatSymbolRefAttr` (PR #533). Done 2026-05-15: 251 build / 301 lit / clean test. Includes a `Test/LLZK/Include/invalid.mlir` negative test that proves the typed verifier path is reached (defense against Gotcha 2, which is *worse* post-upstream-PR #569).
-- [x] **A.2 String** — single op, single param-less type. Done 2026-05-15: 213 build / 265 lit / clean test.
-- [x] **A.3 Cast** — Felt + index types (both in place). Done 2026-05-15.
-- [x] **A.4 RAM** — Felt-dependent, plus `index` type infra. Done 2026-05-15.
-- [x] **A.5 Bool (basic)** — 5 of 6 ops ported. `bool.cmp` deferred to Phase D.4. Done 2026-05-15.
-- [x] **A.6 Constrain (eq only)** — `constrain.eq` ported. `constrain.in` deferred to Phase D.3 (Array types). Done 2026-05-15.
+- [x] **A.1 Include** — symbol *producer*; uses upstream `FlatSymbolRefAttr` (PR #533). Includes a typed-path negative test (defense against Gotcha 2, made worse by upstream PR #569).
+- [x] **A.2 String** — single op, single param-less type.
+- [x] **A.3 Cast** — Felt + index types (both in place).
+- [x] **A.4 RAM** — Felt-dependent, plus `index` type infra.
+- [x] **A.5 Bool (basic)** — 5 of 6 ops ported; `bool.cmp` deferred to Phase D.4.
+- [x] **A.6 Constrain (eq only)** — `constrain.eq` ported; `constrain.in` deferred to Phase D.3 (Array types).
+
+*Build/lit counts at each phase: see git log / `baseline.txt` §tier-1-complete.*
 
 Acceptance: each dialect has a `Test/<Dialect>/identity.mlir`, full lit
 suite green, build clean, `harness/coverage.md` row updated.

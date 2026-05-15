@@ -57,6 +57,10 @@ For each new type:
 
 ## Phase 2 — OpCode + verifier + properties placeholder (20 min)
 
+*(Subsumes what the original Felt port called Phase 4 — verifier arms.
+The exhaustive-match coupling described in `porting-notes.md` Gotcha 1
+forces these to land in a single commit.)*
+
 - [ ] In `Veir/OpCode.lean`:
   - [ ] Add `@[opcodes] inductive Xxx where | op1 | op2 | ... deriving Inhabited, Repr, Hashable, DecidableEq`
   - [ ] Verify capitalization: `@[opcodes]` lowercases the dialect name (`Xxx → "xxx"`). Op-constructor names are taken as-is.
@@ -71,19 +75,46 @@ incomplete and the build red. See `harness/porting-notes.md` Gotcha 1.
 
 ## Phase 3 — Properties wiring (20 min, skip if no op carries attributes)
 
-For each op that carries attributes:
+There are two cases:
 
-- [ ] In `Veir/Properties.lean`:
-  - [ ] Add `structure XxxYyyProperties where ... deriving ...`
-  - [ ] Add `XxxYyyProperties.fromAttrDict` (clone the closest mod_arith / felt equivalent)
-- [ ] Create `Veir/Dialects/<Dialect>/OpInfo.lean`:
-  - [ ] `def Xxx.propertiesOf (op : Xxx) : Type := match op with | .op1 => XxxOp1Properties | _ => Unit`
+### Phase 3.A — No op in this dialect carries attributes
+
+(Cast, RAM, Constrain.eq, Datapath, etc. — also any dialect whose only
+attributes are inferred from operand types.)
+
+- [ ] **Skip the per-dialect `Properties.lean` / `OpInfo.lean` files.** They
+      would be empty / map everything to `Unit`. Instead, the central
+      `propertiesOf`'s `_ => Unit` arm in `Veir/GlobalOpInfo.lean` handles
+      this dialect; the Phase-2 placeholder
+      `case xxx => all_goals exact (Except.ok ())` in
+      `Properties.fromAttrDict` is the final state, not a placeholder.
+- [ ] No change to `Properties.toAttrDict` needed; the wildcard `| _ =>
+      Std.HashMap.emptyWithCapacity 0` at the bottom catches it.
+- [ ] `lake build` — clean.
+
+### Phase 3.B — One or more ops carry attributes
+
+(Felt has `.const`, String has `.new`, Include has `.from`, Bool has
+`.assert` — all need this branch.)
+
+- [ ] Create `Veir/Dialects/LLZK/<Dialect>/Properties.lean`:
+  - [ ] `structure Xxx<Op>Properties where ... deriving Inhabited, Repr, Hashable, DecidableEq`
+  - [ ] `Xxx<Op>Properties.fromAttrDict` with explicit type checks per field
+        (use `Option StringAttr` for optional fields — see
+        `BoolAssertProperties` for the pattern with `Option`)
+- [ ] Create `Veir/Dialects/LLZK/<Dialect>/OpInfo.lean`:
+  - [ ] `def Xxx.propertiesOf (op : Xxx) : Type := match op with | .op1 => Xxx<Op1>Properties | _ => Unit`
   - [ ] `instance : HasDialectOpInfo Xxx where propertiesOf := Xxx.propertiesOf`
 - [ ] In `Veir/GlobalOpInfo.lean`:
-  - [ ] `public import Veir.Dialects.<Dialect>.OpInfo`
+  - [ ] `public import Veir.Dialects.LLZK.<Dialect>.OpInfo`
   - [ ] Add arm to `propertiesOf : OpCode → Type`: `| .xxx op => Xxx.propertiesOf op`
-  - [ ] Replace the Phase 2 placeholder in `Properties.fromAttrDict` with proper per-op dispatch
-  - [ ] Add per-op arms in `Properties.toAttrDict`
+  - [ ] Upgrade the Phase 2 placeholder in `Properties.fromAttrDict` to
+        proper per-op dispatch (use the `«keyword»` French-quote escape
+        if a constructor name is a Lean keyword — `.from`, `.include`,
+        etc. — see Include's wiring)
+  - [ ] Add per-op arms in `Properties.toAttrDict` (the wildcard at the
+        bottom only handles 0-attr ops; property-bearing ops need explicit
+        `| .xxx .op => insert ...`)
 - [ ] `lake build` — clean.
 
 ## Phase 5 — Typed parser (15 min, **mandatory** if Phase 1 ran)
