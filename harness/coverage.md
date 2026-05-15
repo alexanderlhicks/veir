@@ -24,7 +24,7 @@ document for the protocol.
 | LLZK dialect | Status | Caveats |
 |---|---|---|
 | `felt` | ✅ Supported | `felt.const` value stored as `IntegerAttr`, not structured `#felt.const<v>`. Printed form is `<{"value" = 42 : i256}>`, not LLZK's `<{"value" = #felt.const<42>}>`. Trait semantics (`NotFieldNative`, `Commutative`, `AllowConstraintAttr`, `AllowWitnessAttr`) **not encoded**. Folder/canonicalizer **not implemented**. Custom assembly format (`%0 = felt.add %a, %b`) **not supported** — generic format only. |
-| `include` | ❌ Unsupported | Planned Phase A.1. **Unblocked by upstream**: `FlatSymbolRefAttr` (PR #533, merged upstream 2026-05) provides `@name` parsing — Include's `sym_name` attribute now has a route. |
+| `include` | ✅ Supported | `include.from` round-trips with typed `IncludeFromProperties { sym_name : FlatSymbolRefAttr, path : StringAttr }`. `HasParent<ModuleOp>` trait **not encoded** — VEIR will accept the op anywhere, not just as a direct child of a module. `Symbol` trait semantics (uniqueness, lookup) **not encoded**. |
 | `string` | ✅ Supported | Round-trips through `veir-opt`. One op (`string.new`), one type (`!string.type`). Custom assembly format (`%0 = string.new "x"`) **not supported** — generic form only. `Pure`, `ConstantLike`, `hasFolder` traits **not encoded**. |
 | `cast` | ❌ Unsupported | Planned Phase A.3. Depends on Felt. `InferTypeOpInterface` semantics will not be encoded. |
 | `ram` | ❌ Unsupported | Planned Phase A.4. Memory-effect traits (`MemRead`, `MemWrite`) **will not be encoded** — round-trip only. |
