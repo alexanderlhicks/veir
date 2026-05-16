@@ -9,6 +9,5 @@
 
 // CHECK: Error verifying input program: Expected 0 results
 "builtin.module"() ({
-^bb0():
-  %0 = "include.from"() <{sym_name = @lib_a, path = "lib_a.llzk"}> : () -> (i32)
+  %0 = "include.from"() <{sym_name = "lib_a", path = "lib_a.llzk"}> : () -> (i32)
 }) : () -> ()

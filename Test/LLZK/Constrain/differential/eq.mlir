@@ -1,12 +1,13 @@
+// XFAIL: llzk-opt
 // REQUIRES: llzk-opt
 // RUN: %scripts/llzk-diff.sh %s
 //
-// Constrain equality at module level. constrain.in deferred (Phase D.3).
-// Note: LLZK ConstraintOpInterface / ConstraintGen traits not encoded
-// (harness/coverage.md §Op interfaces, §Traits) — diff should still
-// match because traits don't appear in the printed text.
+// Constrain equality at module level. Felt operands materialized via
+// arith.constant → cast.tofelt (LLZK won't accept the felt.const
+// IntegerAttr workaround we use elsewhere).
 
 "builtin.module"() ({
-^bb0(%a: !felt.type, %b: !felt.type):
-  "constrain.eq"(%a, %b) : (!felt.type, !felt.type) -> ()
+  %b = "arith.constant"() <{value = 1 : i1}> : () -> i1
+  %a = "cast.tofelt"(%b) : (i1) -> !felt.type
+  "constrain.eq"(%a, %a) : (!felt.type, !felt.type) -> ()
 }) : () -> ()

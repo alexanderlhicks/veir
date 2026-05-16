@@ -90,7 +90,11 @@ REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 cd "$REPO_ROOT"
 
 log() {
-  [[ "${VEIR_DIFF_VERBOSE:-0}" == "1" ]] && echo "[llzk-diff] $*" >&2
+  # Don't use `[[ ... ]] && echo` here — that yields non-zero when verbose
+  # is off, which under `set -e` aborts the whole script.
+  if [[ "${VEIR_DIFF_VERBOSE:-0}" == "1" ]]; then
+    echo "[llzk-diff] $*" >&2
+  fi
 }
 
 # --- stage 1: optionally lower input via llzk-opt -----------------------------
@@ -120,59 +124,76 @@ if ! "$LLZK_OPT" --mlir-print-op-generic "$GENERIC" > "$LLZK_OUT" 2>"$TMPDIR_LOC
 fi
 
 # --- stage 3: normalize -------------------------------------------------------
-# Conservative normalization:
-#   - drop trailing whitespace
-#   - collapse runs of blank lines to a single blank line
-#   - unquote attribute keys: <{"key" = ...}> -> <{key = ...}> (VEIR quotes,
-#     LLZK doesn't always)
+# Conservative normalization (Python to get reliable regex backreferences):
+#   - drop trailing whitespace; collapse runs of blank lines
+#   - unquote attribute keys: <{"key" = ...}> -> <{key = ...}>
+#     (VEIR quotes attribute keys, LLZK doesn't)
 #   - renumber SSA values in order of appearance: %anything -> %V<n>
-#   - normalize block label names: ^bb0(...): -> ^B0(...)
+#   - rename block labels: ^bb0 / ^4 / etc. -> ^B0 (handles both alpha
+#     and numeric label prefixes)
+#   - elide empty block headers `^Bn():` on a line by themselves
+#     (VEIR emits an explicit empty block for the module body; LLZK doesn't)
 # Other forms of equivalent-but-different output should go through the
 # per-test allowlist, not this normalizer.
 normalize() {
   local src="$1" dst="$2"
-  awk '
-    BEGIN { ssa_n = 0; blk_n = 0; prev_blank = 0 }
-    {
-      line = $0
-      # 1. trailing whitespace
-      sub(/[[:space:]]+$/, "", line)
-      # 2. blank-line collapse
-      if (line == "") {
-        if (prev_blank) next
-        prev_blank = 1; print ""; next
-      }
-      prev_blank = 0
-      # 3. unquote attribute keys
-      gsub(/<\{"([A-Za-z_][A-Za-z0-9_]*)" = /, "<{\\1 = ", line)
-      gsub(/, "([A-Za-z_][A-Za-z0-9_]*)" = /, ", \\1 = ", line)
-      # 4. SSA renumbering and 5. block-label renaming
-      out = ""
-      rest = line
-      while (1) {
-        # find earliest of %ident or ^ident
-        ps = match(rest, /%[A-Za-z0-9_.]+/)
-        ps_start = (ps > 0) ? RSTART : 99999
-        ps_len = (ps > 0) ? RLENGTH : 0
-        bs = match(rest, /\^[A-Za-z_][A-Za-z0-9_]*/)
-        bs_start = (bs > 0) ? RSTART : 99999
-        bs_len = (bs > 0) ? RLENGTH : 0
-        if (ps_start == 99999 && bs_start == 99999) break
-        if (ps_start < bs_start) {
-          name = substr(rest, ps_start, ps_len)
-          if (!(name in ssa_seen)) { ssa_seen[name] = "%V" ssa_n; ssa_n++ }
-          out = out substr(rest, 1, ps_start - 1) ssa_seen[name]
-          rest = substr(rest, ps_start + ps_len)
-        } else {
-          name = substr(rest, bs_start, bs_len)
-          if (!(name in blk_seen)) { blk_seen[name] = "^B" blk_n; blk_n++ }
-          out = out substr(rest, 1, bs_start - 1) blk_seen[name]
-          rest = substr(rest, bs_start + bs_len)
-        }
-      }
-      print out rest
-    }
-  ' "$src" > "$dst"
+  python3 - "$src" "$dst" <<'PY'
+import re, sys
+src, dst = sys.argv[1], sys.argv[2]
+
+ssa = {}
+blk = {}
+
+def sub_ssa(m):
+    name = m.group(0)
+    if name not in ssa:
+        ssa[name] = f"%V{len(ssa)}"
+    return ssa[name]
+
+def sub_blk(m):
+    name = m.group(0)
+    if name not in blk:
+        blk[name] = f"^B{len(blk)}"
+    return blk[name]
+
+ssa_re = re.compile(r'%[A-Za-z0-9_.]+')
+blk_re = re.compile(r'\^[A-Za-z0-9_]+')
+key_quoted_open  = re.compile(r'<\{"([A-Za-z_][A-Za-z0-9_]*)" = ')
+key_quoted_comma = re.compile(r', "([A-Za-z_][A-Za-z0-9_]*)" = ')
+empty_block_hdr  = re.compile(r'^\s*\^B\d+\(\):\s*$')
+
+prev_blank = False
+out_lines = []
+with open(src) as f:
+    for line in f:
+        line = line.rstrip()
+        # strip leading whitespace: MLIR generic-form indentation is purely
+        # cosmetic (structure is fully parenthesized); VEIR indents 4 spaces
+        # per level, LLZK 2.
+        line = line.lstrip()
+        if line == "":
+            if prev_blank:
+                continue
+            prev_blank = True
+            out_lines.append("")
+            continue
+        prev_blank = False
+        # unquote attribute keys
+        line = key_quoted_open.sub(lambda m: '<{' + m.group(1) + ' = ', line)
+        line = key_quoted_comma.sub(lambda m: ', ' + m.group(1) + ' = ', line)
+        # block-label and SSA renaming
+        line = blk_re.sub(sub_blk, line)
+        line = ssa_re.sub(sub_ssa, line)
+        # drop empty block header lines (VEIR-only artifact)
+        if empty_block_hdr.match(line):
+            continue
+        out_lines.append(line)
+
+with open(dst, 'w') as f:
+    f.write("\n".join(out_lines))
+    if out_lines and out_lines[-1] != "":
+        f.write("\n")
+PY
 }
 
 log "stage 3: normalize both outputs"

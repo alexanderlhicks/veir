@@ -194,7 +194,7 @@ def Properties.toAttrDict (opCode : OpCode) (props : propertiesOf opCode) :
   | .string .new =>
     (Std.HashMap.emptyWithCapacity 2).insert "value".toUTF8 (Attribute.stringAttr props.value)
   | .include .from =>
-    let dict := (Std.HashMap.emptyWithCapacity 2).insert "sym_name".toUTF8 (Attribute.flatSymbolRefAttr props.sym_name)
+    let dict := (Std.HashMap.emptyWithCapacity 2).insert "sym_name".toUTF8 (Attribute.stringAttr props.sym_name)
     dict.insert "path".toUTF8 (Attribute.stringAttr props.path)
   | .bool .assert =>
     match props.msg with
@@ -204,7 +204,7 @@ def Properties.toAttrDict (opCode : OpCode) (props : propertiesOf opCode) :
     (Std.HashMap.emptyWithCapacity 1).insert "predicate".toUTF8 (Attribute.integerAttr props.predicate)
   | .global .«def» => Id.run do
     let mut dict := Std.HashMap.emptyWithCapacity 4
-    dict := dict.insert "sym_name".toUTF8 (Attribute.flatSymbolRefAttr props.sym_name)
+    dict := dict.insert "sym_name".toUTF8 (Attribute.stringAttr props.sym_name)
     if props.constant then
       dict := dict.insert "constant".toUTF8 (Attribute.unitAttr UnitAttr.mk)
     dict := dict.insert "type".toUTF8 props.type

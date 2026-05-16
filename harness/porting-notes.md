@@ -31,6 +31,77 @@ instance for new types exists, printing is automatic.
 
 ---
 
+## 2026-05-17 — Gotcha 5: `SymbolNameAttr` is `StringAttr`, not `SymbolRefAttr`
+
+**Discovery (Include + Global differential tests, post-llzk-opt-build)**:
+I had ported `include.from`'s `sym_name` and `global.def`'s `sym_name`
+as `FlatSymbolRefAttr` (`@name`). LLZK rejects these — it expects
+`StringAttr` (`"name"`).
+
+In MLIR ODS, `SymbolNameAttr` is **defined as a `StringAttr` constraint**
+on the *producer* side of a symbol. The `@`-prefixed `FlatSymbolRefAttr`
+is for *users* of a symbol (`global.read`'s `name_ref`, `function.call`'s
+`callee`, etc.). The visual similarity in some printers' output led me
+astray — Gotcha 3 (2026-05-15) made the wrong assumption.
+
+**How to apply**: when porting any op with the `Symbol` trait:
+- The op's `sym_name` (or equivalent) is a `StringAttr`, parsed as `"name"`.
+- Other ops that *reference* the symbol use `FlatSymbolRefAttr`, parsed as `@name`.
+- Generic-form printing follows the underlying ODS type, not the trait.
+
+**Affected ports retroactively fixed**: Include's `sym_name`, Global's
+`sym_name`. Global's `name_ref` (on read/write) was correct as
+`FlatSymbolRefAttr`. This re-narrows Gotcha 3 — `Symbol`-trait ops
+need `@name` parsing for their *uses* elsewhere, not for their own
+`sym_name` field.
+
+**Cost of the discovery**: the differential test against `llzk-opt` was
+the forcing function. Without it, I'd have shipped both Include and
+Global with subtly wrong attribute encoding. Score one for the
+differential harness — exactly what it was designed to catch.
+
+---
+
+## 2026-05-17 — Gotcha 6: most LLZK ops require a `function.def` wrapper
+
+**Discovery (Bool/Cast/Constrain/RAM/Global differential tests)**:
+At module level, most LLZK ops are not legal. LLZK enforces this via
+op verifiers that check `getParentOfType<FunctionDefOp>()` and reject
+otherwise, sometimes additionally requiring the parent function to
+carry a specific attribute:
+
+| Op | Required parent attribute |
+|---|---|
+| `bool.and`/`or`/`xor`/`not`/`cmp` | `function.allow_non_native_field_ops` |
+| `cast.toindex` | `function.allow_non_native_field_ops` |
+| `constrain.eq`/`constrain.in` | `function.allow_constraint` |
+| `global.write` | `function.allow_witness` |
+| Most RAM/Felt arith ops in constraint contexts | varies |
+
+VEIR doesn't enforce any of this — our verifier checks only
+operand/result/region/successor counts, not parent-op kind. So
+identity-test inputs that work in VEIR may fail to parse in LLZK,
+and vice-versa.
+
+**How to apply**:
+- Until Function dialect ports (Phase G.1), differential testing of
+  most LLZK ops is **structurally impossible** — they need a
+  `function.def` wrapper that VEIR can't express.
+- For ops that work at module level (`include.from`, `string.new`,
+  `global.def`/`global.read` without write, top-level `arith.constant`),
+  differential testing works today.
+- Mark fully-Function-gated tests with `// XFAIL: llzk-opt` so lit
+  reports them as expected-fail rather than failure. When Phase G.1
+  lands and tests are rewritten to use `function.def`, flip back to
+  plain `// REQUIRES: llzk-opt`.
+
+**Catalog of differential-testable ops today**: `include.from`,
+`string.new`, `global.def`+`global.read` (without `global.write`),
+plus anything else exclusively at module level. Catalog grows when
+Function lands.
+
+---
+
 ## 2026-05-15 — Pattern: enum attributes via the IntegerAttr workaround
 
 **Discovery (Phase D.4 — bool.cmp)**: LLZK uses `I32EnumAttr` for

@@ -7,6 +7,5 @@
 
 // CHECK: missing 'name_ref' property
 "builtin.module"() ({
-^bb0():
   %0 = "global.read"() : () -> i32
 }) : () -> ()

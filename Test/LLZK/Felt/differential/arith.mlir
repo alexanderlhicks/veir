@@ -1,3 +1,4 @@
+// XFAIL: llzk-opt
 // REQUIRES: llzk-opt
 // RUN: %scripts/llzk-diff.sh %s --allowlist %s.allowlist
 //

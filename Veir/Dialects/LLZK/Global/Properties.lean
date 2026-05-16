@@ -10,8 +10,11 @@ public section
 /--
   Properties of the `global.def` operation.
 
-  - `sym_name`: the global's name (parsed as `@name`, stored as
-    `FlatSymbolRefAttr` per the upstream convention).
+  - `sym_name`: the global's name. **Stored as `StringAttr`**, matching
+    LLZK's `SymbolNameAttr` (a `StringAttr` constraint). Generic-form
+    printing: `<{sym_name = "counter", ...}>`. This is the *producer*
+    side of a symbol; the `@`-prefix form is only for users (see
+    `global.read`/`global.write`'s `name_ref` field below).
   - `constant`: presence of the `const` modifier (LLZK's `UnitAttr:$constant`).
   - `type`: the global's declared type. Stored as `Attribute` (not `TypeAttr`)
     because VEIR's per-op properties don't currently carry the `isType`
@@ -31,7 +34,7 @@ public section
     references are not validated against existing `global.def`s.
 -/
 structure GlobalDefProperties where
-  sym_name : FlatSymbolRefAttr
+  sym_name : StringAttr
   constant : Bool
   type : Attribute
   initial_value : Option Attribute
@@ -41,8 +44,8 @@ def GlobalDefProperties.fromAttrDict (attrDict : Std.HashMap ByteArray Attribute
     Except String GlobalDefProperties := do
   let some symAttr := attrDict["sym_name".toUTF8]?
     | throw "global.def: missing 'sym_name' property"
-  let .flatSymbolRefAttr sym := symAttr
-    | throw s!"global.def: expected 'sym_name' to be a flat symbol ref, got {symAttr}"
+  let .stringAttr sym := symAttr
+    | throw s!"global.def: expected 'sym_name' to be a string attribute, got {symAttr}"
   let constant ← getUnitAttr "constant" attrDict
   let some typeAttr := attrDict["type".toUTF8]?
     | throw "global.def: missing 'type' property"

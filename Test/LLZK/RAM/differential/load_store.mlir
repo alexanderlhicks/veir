@@ -1,12 +1,16 @@
+// XFAIL: llzk-opt
 // REQUIRES: llzk-opt
 // RUN: %scripts/llzk-diff.sh %s
 //
-// RAM load/store at module level. Note: LLZK's MemRead/MemWrite memory
-// effects are not encoded in VEIR (harness/coverage.md §Traits) — diff
-// should still match because effects don't appear in the printed text.
+// RAM load/store at module level. We get felt + index values via the
+// arith→cast chain since LLZK rejects builtin.module block args and we
+// can't use felt.const (its IntegerAttr workaround diverges from
+// LLZK's #felt.const<v> — see harness/coverage.md §Attributes).
 
 "builtin.module"() ({
-^bb0(%addr: index, %val: !felt.type):
+  %b = "arith.constant"() <{value = 1 : i1}> : () -> i1
+  %val = "cast.tofelt"(%b) : (i1) -> !felt.type
+  %addr = "cast.toindex"(%val) : (!felt.type) -> index
   "ram.store"(%addr, %val) : (index, !felt.type) -> ()
   %0 = "ram.load"(%addr) : (index) -> !felt.type
 }) : () -> ()

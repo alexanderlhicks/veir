@@ -1,10 +1,14 @@
+// XFAIL: llzk-opt
 // REQUIRES: llzk-opt
 // RUN: %scripts/llzk-diff.sh %s
 //
-// Casts between integer/felt/index types at module level.
+// Casts: i1 -> felt -> index. LLZK's cast.tofelt only accepts i1 or
+// index inputs (the i32 case our identity.mlir uses works in VEIR
+// because VEIR doesn't enforce the operand-type predicate — a
+// documented coverage gap).
 
 "builtin.module"() ({
-^bb0(%i: i32, %f: !felt.type):
-  %0 = "cast.tofelt"(%i) : (i32) -> !felt.type
-  %1 = "cast.toindex"(%f) : (!felt.type) -> index
+  %b = "arith.constant"() <{value = 1 : i1}> : () -> i1
+  %f = "cast.tofelt"(%b) : (i1) -> !felt.type
+  %i = "cast.toindex"(%f) : (!felt.type) -> index
 }) : () -> ()

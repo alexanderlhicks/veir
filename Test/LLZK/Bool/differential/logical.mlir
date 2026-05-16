@@ -1,10 +1,14 @@
+// XFAIL: llzk-opt
 // REQUIRES: llzk-opt
 // RUN: %scripts/llzk-diff.sh %s
 //
-// Bool basic ops at module level. Excludes bool.cmp (deferred Phase D.4).
+// Bool basic ops at module level. Uses arith.constant for i1 inputs
+// (LLZK rejects `builtin.module` regions with block arguments, so we
+// can't use the `^bb0(%a: i1, ...)` form).
 
 "builtin.module"() ({
-^bb0(%a: i1, %b: i1):
+  %a = "arith.constant"() <{value = 1 : i1}> : () -> i1
+  %b = "arith.constant"() <{value = 0 : i1}> : () -> i1
   %0 = "bool.and"(%a, %b) : (i1, i1) -> i1
   %1 = "bool.or"(%a, %b) : (i1, i1) -> i1
   %2 = "bool.xor"(%a, %b) : (i1, i1) -> i1
