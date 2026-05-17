@@ -17,6 +17,6 @@
 }) : () -> ()
 
 // CHECK:        "builtin.module"() ({
-// CHECK:          %{{[^ ]+}} = "felt.const"() <{"value" = 0 : i256}> : () -> !felt.type
+// CHECK:          %{{[^ ]+}} = "felt.const"() <{"value" = #felt<const 0> : !felt.type}> : () -> !felt.type
 // CHECK-NEXT:     %{{[^ ]+}} = "felt.sub"(%{{[^,]+}}, %{{[^)]+}}) : (!felt.type, !felt.type) -> !felt.type
 // CHECK-NEXT:   }) : () -> ()

@@ -10,13 +10,14 @@ public section
 /--
   Properties of the `felt.const` operation.
 
-  The `value` field stores the constant as an `IntegerAttr` rather than as a
-  structured `#felt.const<v>` attribute; this matches VEIR's `arith.constant` /
-  `mod_arith.constant` precedent. See `harness/coverage.md` §Attributes for the
-  caveat.
+  The `value` field is a structured `FeltConstAttr` (printed as
+  `#felt.const<N>`), matching LLZK's native form. **2026-05-17**: was
+  previously `IntegerAttr` as a workaround; upgraded to the structured
+  form when the per-dialect attribute parser infra landed. The Felt
+  differential test against `llzk-opt` is no longer XFAIL.
 -/
 structure FeltConstProperties where
-  value : IntegerAttr
+  value : FeltConstAttr
 deriving Inhabited, Repr, Hashable, DecidableEq
 
 def FeltConstProperties.fromAttrDict (attrDict : Std.HashMap ByteArray Attribute) :
@@ -25,9 +26,9 @@ def FeltConstProperties.fromAttrDict (attrDict : Std.HashMap ByteArray Attribute
     throw s!"felt.const: expected only 'value' property, but got {attrDict.size} properties"
   let some attr := attrDict["value".toUTF8]?
     | throw "felt.const: missing 'value' property"
-  let .integerAttr intAttr := attr
-    | throw s!"felt.const: expected 'value' to be an integer attribute, but got {attr}"
-  return { value := intAttr }
+  let .feltConstAttr fcAttr := attr
+    | throw s!"felt.const: expected 'value' to be a `#felt.const<N>` attribute, but got {attr}"
+  return { value := fcAttr }
 
 end
 

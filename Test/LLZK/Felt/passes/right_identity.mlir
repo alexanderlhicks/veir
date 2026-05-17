@@ -6,10 +6,10 @@
 "builtin.module"() ({
 ^bb0(%a: !felt.type):
   // %z is unused after rewrite; DCE doesn't run here, so it stays.
-  %z = "felt.const"() <{value = 0 : i256}> : () -> !felt.type
+  %z = "felt.const"() <{"value" = #felt<const 0> : !felt.type}> : () -> !felt.type
   %r = "felt.add"(%a, %z) : (!felt.type, !felt.type) -> !felt.type
   // Sanity: a non-matching add (rhs is not zero) is left untouched.
-  %c1 = "felt.const"() <{value = 1 : i256}> : () -> !felt.type
+  %c1 = "felt.const"() <{"value" = #felt<const 1> : !felt.type}> : () -> !felt.type
   %s = "felt.add"(%a, %c1) : (!felt.type, !felt.type) -> !felt.type
 }) : () -> ()
 
@@ -21,7 +21,7 @@
 // (Veir/Passes/Felt/Proofs.lean) requires.
 //
 // CHECK:        "builtin.module"() ({
-// CHECK:          %{{[^ ]+}} = "felt.const"() <{"value" = 0 : i256}> : () -> !felt.type
-// CHECK-NEXT:     %{{[^ ]+}} = "felt.const"() <{"value" = 1 : i256}> : () -> !felt.type
+// CHECK:          %{{[^ ]+}} = "felt.const"() <{"value" = #felt<const 0> : !felt.type}> : () -> !felt.type
+// CHECK-NEXT:     %{{[^ ]+}} = "felt.const"() <{"value" = #felt<const 1> : !felt.type}> : () -> !felt.type
 // CHECK-NEXT:     %{{[^ ]+}} = "felt.add"(%{{[^,]+}}, %{{[^)]+}}) : (!felt.type, !felt.type) -> !felt.type
 // CHECK-NEXT:   }) : () -> ()

@@ -32,6 +32,7 @@ to be maintained as work progresses, not written once.
 | Bool dialect (and/or/xor/not/assert/cmp) | ✅ ported (cmp via IntegerAttr enum workaround) | `Test/LLZK/Bool/{identity,invalid,cmp,cmp_invalid}.mlir` |
 | Constrain dialect (eq only) | ⚠️ partial (constrain.in deferred) | `Test/LLZK/Constrain/{identity,invalid}.mlir` |
 | Global dialect (def, read, write) | ✅ ported (typed; uses FlatSymbolRefAttr) | `Test/LLZK/Global/{identity,invalid}.mlir` |
+| Structured `#felt<const N>` attribute | ✅ landed 2026-05-17 — first per-dialect structured attribute; un-XFAILed Felt differential | `Veir/IR/Attribute.lean` (FeltConstAttr) + `Veir/Parser/AttrParser.lean` |
 | First verified LLZK pass | ✅ Phase E.1 — `felt-combine` proves `felt.add x (felt.const 0) → x` | `Veir/Passes/Felt/{Combine,Proofs}.lean` |
 | Second verified LLZK pass (constant-fold) | ✅ Phase E.2 — `felt-combine` proves `felt.add (felt.const c1) (felt.const c2) → felt.const (c1+c2)` | `Veir/Passes/Felt/{Combine,Proofs}.lean` |
 | Third verified LLZK pass (self-subtraction) | ✅ Phase E.3 — `felt-combine` proves `felt.sub x x → felt.const 0` | `Veir/Passes/Felt/{Combine,Proofs}.lean` |
@@ -97,9 +98,10 @@ Lands the per-dialect attribute and operand machinery needed by
 Tier 2. (Originally included a `SymbolRefAttr` parser; that's now
 delivered by upstream.)
 
+- [x] **C.0** Per-dialect structured-attribute parser pattern (done 2026-05-17 with `FeltConstAttr`; recipe in `harness/porting-notes.md`). Establishes the template for any future structured attribute.
 - [ ] **C.1** `AffineMapAttr` in `Attribute.lean` + parser (black-box: store the textual form, no semantic interpretation yet)
 - [ ] **C.2** Variadic-of-variadic operand handling in `OpCode`/`Verifier`
-- [ ] **C.3** Enum-attribute story finalized (either a per-dialect parser pattern, or keep the `IntegerAttr` workaround documented)
+- [x] **C.3** Enum-attribute story finalized: `IntegerAttr` workaround stays the recommended pattern (used for `bool.cmp` predicate); a per-dialect enum parser is only worth adding if a verified pass needs symbolic case matching. Pattern documented in `harness/porting-notes.md` 2026-05-15 enum-attr entry.
 
 Acceptance: one consumer dialect for each piece of infra lands as a
 follow-on commit on the same branch.

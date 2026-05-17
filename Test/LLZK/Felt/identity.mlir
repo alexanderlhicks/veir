@@ -2,8 +2,8 @@
 
 "builtin.module"() ({
 ^bb0():
-  %0 = "felt.const"() <{"value" = 42 : i256}> : () -> !felt.type
-  %1 = "felt.const"() <{"value" = 7 : i256}> : () -> !felt.type<"bn254">
+  %0 = "felt.const"() <{"value" = #felt<const 42> : !felt.type}> : () -> !felt.type
+  %1 = "felt.const"() <{"value" = #felt<const 7> : !felt.type<"bn254">}> : () -> !felt.type<"bn254">
   %2 = "felt.add"(%0, %0) : (!felt.type, !felt.type) -> !felt.type
   %3 = "felt.sub"(%0, %0) : (!felt.type, !felt.type) -> !felt.type
   %4 = "felt.mul"(%0, %0) : (!felt.type, !felt.type) -> !felt.type
@@ -26,8 +26,8 @@
 
 // CHECK:       "builtin.module"() ({
 // CHECK-NEXT:    ^{{.*}}():
-// CHECK-NEXT:      %{{.*}} = "felt.const"() <{"value" = 42 : i256}> : () -> !felt.type
-// CHECK-NEXT:      %{{.*}} = "felt.const"() <{"value" = 7 : i256}> : () -> !felt.type<"bn254">
+// CHECK-NEXT:      %{{.*}} = "felt.const"() <{"value" = #felt<const 42> : !felt.type}> : () -> !felt.type
+// CHECK-NEXT:      %{{.*}} = "felt.const"() <{"value" = #felt<const 7> : !felt.type<"bn254">}> : () -> !felt.type<"bn254">
 // CHECK-NEXT:      %{{.*}} = "felt.add"(%{{.*}}, %{{.*}}) : (!felt.type, !felt.type) -> !felt.type
 // CHECK-NEXT:      %{{.*}} = "felt.sub"(%{{.*}}, %{{.*}}) : (!felt.type, !felt.type) -> !felt.type
 // CHECK-NEXT:      %{{.*}} = "felt.mul"(%{{.*}}, %{{.*}}) : (!felt.type, !felt.type) -> !felt.type

@@ -190,7 +190,7 @@ def Properties.toAttrDict (opCode : OpCode) (props : propertiesOf opCode) :
   | .llvm .mlir__constant =>
     (Std.HashMap.emptyWithCapacity 2).insert "value".toUTF8 (Attribute.integerAttr props.value)
   | .felt .const =>
-    (Std.HashMap.emptyWithCapacity 2).insert "value".toUTF8 (Attribute.integerAttr props.value)
+    (Std.HashMap.emptyWithCapacity 2).insert "value".toUTF8 (Attribute.feltConstAttr props.value)
   | .string .new =>
     (Std.HashMap.emptyWithCapacity 2).insert "value".toUTF8 (Attribute.stringAttr props.value)
   | .include .from =>

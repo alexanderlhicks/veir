@@ -42,8 +42,10 @@ def constant_fold_add (rewriter : PatternRewriter OpCode) (op : OperationPtr) :
   let some cstL := matchConstFromValue lhs rewriter.ctx | return rewriter
   let some cstR := matchConstFromValue rhs rewriter.ctx | return rewriter
   let sumVal := cstL.value.value + cstR.value.value
+  -- Preserve the input constants' field type (they're TypesUnify'd by
+  -- felt.add's input constraint, so picking either is fine).
   let cstProp : FeltConstProperties :=
-    { value := { value := sumVal, type := cstL.value.type } }
+    { value := { value := sumVal, fieldType := cstL.value.fieldType } }
   -- lhs and the original add result share the same `!felt.type` type;
   -- reuse lhs's type for the new const op (mirrors InstCombine's pattern).
   let resultType := lhs.getType! rewriter.ctx.raw
@@ -58,11 +60,11 @@ def self_subtraction_to_zero (rewriter : PatternRewriter OpCode) (op : Operation
   let some (lhs, rhs, _) := matchSub op rewriter.ctx | return rewriter
   -- ValuePtr equality: both operands flow from the same SSA value.
   if lhs ≠ rhs then return rewriter
-  -- Synthesize a felt.const 0. Use i256 for the literal (matches the
-  -- shape of felt.const literals in our test corpus); the underlying
-  -- field element semantics is field-agnostic.
+  -- Synthesize a `#felt<const 0> : !felt.type` (structured form post-2026-05-17).
+  -- Use an unnamed felt field; if the surrounding context has a named
+  -- field, a later canonicalizer (not implemented) would refine it.
   let cstProp : FeltConstProperties :=
-    { value := { value := 0, type := { bitwidth := 256 } } }
+    { value := { value := 0, fieldType := { fieldName := none } } }
   let resultType := lhs.getType! rewriter.ctx.raw
   let (rewriter, newOp) ← rewriter.createOp (OpCode.felt Felt.const)
     #[resultType] #[] #[] #[] cstProp (some <| .before op) sorry sorry sorry sorry
@@ -90,7 +92,7 @@ def assoc_const_fold_add (rewriter : PatternRewriter OpCode) (op : OperationPtr)
   -- Build the combined constant (c1+c2) and create a fresh add.
   let combinedVal := c1.value.value + c2.value.value
   let combinedCst : FeltConstProperties :=
-    { value := { value := combinedVal, type := c1.value.type } }
+    { value := { value := combinedVal, fieldType := c1.value.fieldType } }
   let resultType := x.getType! rewriter.ctx.raw
   let (rewriter, combinedConstOp) ← rewriter.createOp (OpCode.felt Felt.const)
     #[resultType] #[] #[] #[] combinedCst (some <| .before op) sorry sorry sorry sorry

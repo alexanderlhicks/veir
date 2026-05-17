@@ -11,12 +11,12 @@
 "builtin.module"() ({
 ^bb0(%v: !felt.type):
   // Both operands constant: folds to felt.const 42.
-  %a = "felt.const"() <{value = 10 : i256}> : () -> !felt.type
-  %b = "felt.const"() <{value = 32 : i256}> : () -> !felt.type
+  %a = "felt.const"() <{"value" = #felt<const 10> : !felt.type}> : () -> !felt.type
+  %b = "felt.const"() <{"value" = #felt<const 32> : !felt.type}> : () -> !felt.type
   %sum = "felt.add"(%a, %b) : (!felt.type, !felt.type) -> !felt.type
   // Mixed: a constant + a block-arg value. Constant-fold does NOT match;
   // right-identity pattern also doesn't (rhs is 5, not 0). Op survives.
-  %five = "felt.const"() <{value = 5 : i256}> : () -> !felt.type
+  %five = "felt.const"() <{"value" = #felt<const 5> : !felt.type}> : () -> !felt.type
   %mixed = "felt.add"(%v, %five) : (!felt.type, !felt.type) -> !felt.type
 }) : () -> ()
 
@@ -24,6 +24,6 @@
 // the mixed add stays. Old const-defining ops (%a, %b) stay because no DCE.
 //
 // CHECK:        "builtin.module"() ({
-// CHECK:          %{{[^ ]+}} = "felt.const"() <{"value" = 42 : i256}> : () -> !felt.type
+// CHECK:          %{{[^ ]+}} = "felt.const"() <{"value" = #felt<const 42> : !felt.type}> : () -> !felt.type
 // CHECK:          %{{[^ ]+}} = "felt.add"(%{{[^,]+}}, %{{[^)]+}}) : (!felt.type, !felt.type) -> !felt.type
 // CHECK-NEXT:   }) : () -> ()

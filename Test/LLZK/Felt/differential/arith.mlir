@@ -1,18 +1,17 @@
-// XFAIL: llzk-opt
 // REQUIRES: llzk-opt
-// RUN: %scripts/llzk-diff.sh %s --allowlist %s.allowlist
+// RUN: %scripts/llzk-diff.sh %s
 //
-// Felt arithmetic, module-level only (no function.def wrapper — Function
-// dialect is Tier 3). Known divergence: VEIR stores felt.const's value
-// as IntegerAttr (`<{"value" = N : i256}>`); LLZK uses the structured
-// `#felt.const<N>`. See arith.mlir.allowlist for the substitution that
-// collapses these to equivalent forms before diffing.
+// Felt constants at module level. Uses the structured `#felt.const<N>`
+// attribute (landed 2026-05-17, replaces the prior IntegerAttr
+// workaround that the allowlist used to bridge). No more allowlist
+// needed; the diff matches cleanly.
+//
+// LLZK's felt arithmetic ops (add, mul, neg, etc.) require a
+// function.def wrapper with function.allow_non_native_field_ops, so
+// we only exercise felt.const at module level until Phase G.1
+// (Function dialect) ports.
 
 "builtin.module"() ({
-^bb0(%a: !felt.type, %b: !felt.type):
-  %c1 = "felt.const"() <{value = 42 : i256}> : () -> !felt.type
-  %c2 = "felt.const"() <{value = 7 : i256}> : () -> !felt.type
-  %s = "felt.add"(%a, %c1) : (!felt.type, !felt.type) -> !felt.type
-  %p = "felt.mul"(%s, %c2) : (!felt.type, !felt.type) -> !felt.type
-  %n = "felt.neg"(%p) : (!felt.type) -> !felt.type
+  %c1 = "felt.const"() <{value = #felt<const 42> : !felt.type}> : () -> !felt.type
+  %c2 = "felt.const"() <{value = #felt<const 7> : !felt.type}> : () -> !felt.type
 }) : () -> ()

@@ -359,6 +359,40 @@ def parseOptionalFeltType : AttrParserM (Option TypeAttr) := do
   return some (FeltType.mk none)
 
 /--
+  Parse an LLZK felt-const attribute, if present.
+  Syntax: `#felt<const N> : !felt.type` or `#felt<const N> : !felt.type<"name">`.
+  First per-dialect structured attribute in VEIR — pattern for future
+  `#bool<...>`, `#poly<...>`, etc. Note the dialect mnemonic is `felt`
+  (not `felt.const`); `const` is a keyword in the body.
+
+  Must come after `parseOptionalFeltType` in this file because it
+  invokes that parser for the type-annotation suffix.
+-/
+def parseOptionalFeltConstAttr : AttrParserM (Option FeltConstAttr) := do
+  let token ← peekToken
+  let .hashIdent := token.kind | return none
+  let input := (← getThe ParserState).input
+  let name := { token.slice with start := token.slice.start + 1 }.of input
+  if name ≠ "felt".toByteArray then return none
+  let _ ← consumeToken
+  parsePunctuation "<"
+  -- Body is `const <integer>`. The "const" is a Lean keyword; use the
+  -- generic keyword parser to consume it.
+  if !(← parseOptionalKeyword "const".toByteArray) then
+    throw "#felt<...> attribute body must begin with `const`"
+  let some val ← parseOptionalInteger false false
+    | throw "#felt<const ...> expects an integer value"
+  parsePunctuation ">"
+  parsePunctuation ":"
+  -- Field type: !felt.type or !felt.type<"name">.
+  let some ftAttr ← parseOptionalFeltType
+    | throw "#felt<const N> expects `: !felt.type[...]` annotation"
+  -- Project the FeltType out of the TypeAttr wrapper.
+  let Attribute.feltType ft := ftAttr.val
+    | throw "#felt<const N>'s type annotation must be !felt.type"
+  return some (FeltConstAttr.mk val ft)
+
+/--
   Parse CIRCT's HW dialect's `ModulePort::Direction` type.
   Its syntax is `(input|output|inout)`.
 -/
@@ -515,6 +549,12 @@ partial def parseOptionalDictionaryAttr : AttrParserM (Option DictionaryAttr) :=
   Parse an attribute, if present.
 -/
 partial def parseOptionalAttribute : AttrParserM (Option Attribute) := do
+  -- Per-dialect structured attributes come before the dialectAttr
+  -- fallthrough (which captures unknown `#dialect.name<...>` as
+  -- UnregisteredAttr). Slot any new structured attr here, before the
+  -- fallthrough.
+  if let some feltConstAttr ← parseOptionalFeltConstAttr then
+    return some feltConstAttr
   if let some dialectAttr ← parseOptionalDialectAttr then
     return some dialectAttr
   else if let some locationAttr ← parseOptionalLocationAttr then

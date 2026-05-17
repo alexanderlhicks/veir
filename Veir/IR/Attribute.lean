@@ -149,6 +149,26 @@ deriving Inhabited, Repr, DecidableEq, Hashable
 structure StringType
 deriving Inhabited, Repr, DecidableEq, Hashable
 
+/--
+  The `#felt<const N> : !felt.type` attribute from LLZK's felt dialect
+  — a structured, typed field-element constant. Printed form:
+  `#felt<const 42> : !felt.type` (or with a named field:
+  `#felt<const 42> : !felt.type<"bn254">`).
+
+  First per-dialect structured attribute in VEIR; it replaces the
+  prior `IntegerAttr`-as-workaround for `felt.const`'s `value` field
+  (see `harness/porting-notes.md` 2026-05-15 entries and
+  `harness/coverage.md` §Attributes for the workaround story).
+
+  Note: the *dialect mnemonic* in the attribute syntax is `felt`
+  (not `felt.const`); the `const` is a keyword in the body — LLZK
+  has multiple felt attributes that share the dialect prefix.
+-/
+structure FeltConstAttr where
+  value : Int
+  fieldType : FeltType
+deriving Inhabited, Repr, DecidableEq, Hashable
+
 namespace LLVM
 
 structure PointerType
@@ -274,6 +294,8 @@ inductive Attribute
 | modArithType (type : ModArithType)
 /-- LLZK felt type -/
 | feltType (type : FeltType)
+/-- LLZK felt-const attribute (`#felt.const<N>`) -/
+| feltConstAttr (attr : FeltConstAttr)
 /-- LLZK string type -/
 | stringType (type : StringType)
 /-- MLIR builtin index type -/
@@ -411,6 +433,10 @@ def Attribute.decEq (attr1 attr2 : Attribute) : Decidable (attr1 = attr2) := by
     exact (match decEq type1 type2 with
       | isTrue hEq => isTrue (by grind)
       | isFalse hEq => isFalse (by grind))
+  case feltConstAttr.feltConstAttr attr1 attr2 =>
+    exact (match decEq attr1 attr2 with
+      | isTrue hEq => isTrue (by grind)
+      | isFalse hEq => isFalse (by grind))
   case stringType.stringType type1 type2 =>
     exact (match decEq type1 type2 with
       | isTrue hEq => isTrue (by grind)
@@ -515,6 +541,9 @@ instance : ToString FeltType where
     | some name => s!"!felt.type<\"{escapeStringLiteral (String.fromUTF8! name)}\">"
     | none => "!felt.type"
 
+instance : ToString FeltConstAttr where
+  toString attr := s!"#felt<const {attr.value}> : {attr.fieldType}"
+
 instance : ToString StringType where
   toString _ := "!string.type"
 
@@ -610,6 +639,7 @@ def Attribute.toString (attr : Attribute) : String :=
   | .functionType type => type.toString
   | .modArithType type => ToString.toString type
   | .feltType type => ToString.toString type
+  | .feltConstAttr attr => ToString.toString attr
   | .stringType type => ToString.toString type
   | .indexType type => ToString.toString type
   | .llvmPointerType type => ToString.toString type
@@ -675,6 +705,9 @@ instance : Coe ModArithType Attribute where
 instance : Coe FeltType Attribute where
   coe type := .feltType type
 
+instance : Coe FeltConstAttr Attribute where
+  coe attr := .feltConstAttr attr
+
 instance : Coe StringType Attribute where
   coe type := .stringType type
 
@@ -718,6 +751,7 @@ def isType (attr : Attribute) : Bool :=
   | .functionType _ => true
   | .modArithType _ => true
   | .feltType _ => true
+  | .feltConstAttr _ => false
   | .stringType _ => true
   | .indexType _ => true
   | .registerType _ => true

@@ -31,6 +31,80 @@ instance for new types exists, printing is automatic.
 
 ---
 
+## 2026-05-17 — Pattern: per-dialect structured attributes
+
+**Discovery (post-Felt-differential triage)**: VEIR's first per-dialect
+structured attribute, `FeltConstAttr` (printed as `#felt<const N> :
+!felt.type`). The parser pattern generalizes to any LLZK structured
+attribute of the form `#dialect<body> [: type-annotation]`.
+
+Recipe (mirror `Veir/IR/Attribute.lean` for `FeltConstAttr` and
+`Veir/Parser/AttrParser.lean` for `parseOptionalFeltConstAttr`):
+
+1. **Add the structure**:
+   ```lean
+   structure XxxAttr where
+     value : <T>      -- whatever the body parses to
+     -- optional fields for any colon-suffix type annotation
+     -- (e.g. fieldType : SomeType)
+   deriving Inhabited, Repr, DecidableEq, Hashable
+   ```
+
+2. **Add the `Attribute` case** + `decEq` arm + `ToString` instance +
+   `Coe` instance + `isType` arm (usually `false` for attributes).
+
+3. **Add the parser**, **placed AFTER any type parsers it depends on**:
+   ```lean
+   def parseOptionalXxxAttr : AttrParserM (Option XxxAttr) := do
+     let token ← peekToken
+     let .hashIdent := token.kind | return none
+     let input := (← getThe ParserState).input
+     let name := { token.slice with start := token.slice.start + 1 }.of input
+     if name ≠ "<dialect-mnemonic>".toByteArray then return none
+     let _ ← consumeToken
+     parsePunctuation "<"
+     -- parse body — typically a keyword + values
+     if !(← parseOptionalKeyword "<body-keyword>".toByteArray) then
+       throw "#<dialect>: body must begin with `<body-keyword>`"
+     let some val ← parseOptionalInteger false false
+       | throw "expected integer"
+     parsePunctuation ">"
+     -- optional colon-type-annotation
+     parsePunctuation ":"
+     let some ftAttr ← parseOptionalXxxType
+       | throw "expected `: !<dialect>.type` annotation"
+     let Attribute.xxxType ft := ftAttr.val
+       | throw "annotation must be !<dialect>.type"
+     return some (XxxAttr.mk val ft)
+   ```
+
+4. **Slot into `parseOptionalAttribute`** **before** `parseOptionalDialectAttr`
+   (which is the fallthrough to `UnregisteredAttr`).
+
+**Two gotchas** discovered while building `FeltConstAttr`:
+
+a) **Dialect mnemonic vs body keyword**. LLZK's printed form is
+   `#felt<const 42>`, not `#felt.const<42>`. The dialect mnemonic in
+   attribute syntax is just `felt`; `const` is a *keyword in the body*.
+   This means one `#felt` parser can dispatch to multiple attribute
+   variants by body keyword (`#felt<const N>`, `#felt<spec name>`,
+   etc.). Don't assume the attribute name is `#<dialect>.<attr>`;
+   look at LLZK's actual generic-form output via
+   `llzk-opt --mlir-print-op-generic`.
+
+b) **Type-annotation suffix is often required**. `#felt<const 42>` is
+   incomplete in LLZK; the full form is `#felt<const 42> : !felt.type`.
+   The type annotation parametrizes the attribute (e.g., which finite
+   field the constant lives in). Store it in the `XxxAttr` structure
+   alongside the value.
+
+**Use this pattern**: Phase D.4's Bool.cmp predicate stays on
+IntegerAttr for now (simpler), but if the next maintainer wants
+LLZK-exact textual round-trip for Bool, the recipe applies. Same
+for any future Polymorphic/Struct attribute that's structured.
+
+---
+
 ## 2026-05-17 — Gotcha 5: `SymbolNameAttr` is `StringAttr`, not `SymbolRefAttr`
 
 **Discovery (Include + Global differential tests, post-llzk-opt-build)**:
