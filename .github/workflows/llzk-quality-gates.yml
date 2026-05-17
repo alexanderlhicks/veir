@@ -1,0 +1,33 @@
+name: LLZK quality gates
+
+# Runs the LLZK-port-specific static checks defined in
+# harness/quality-gates.md. Complements the existing Lean Action CI
+# (build + lit + unit tests) with port-quality enforcement:
+#   - no new sorry/axiom in proof files or LLZK ports
+#   - coverage.md path/count consistency
+#   - tags pushed
+#
+# Fast: no Lean build required (script is pure-text).
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+  merge_group:
+
+jobs:
+  quality-gates:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # need full tag history for §7
+          fetch-tags: true
+
+      - name: Set up Python 3.13
+        uses: actions/setup-python@v6
+        with:
+          python-version: 3.13
+
+      - name: Run llzk quality gates
+        run: bash scripts/check-llzk-quality-gates.sh

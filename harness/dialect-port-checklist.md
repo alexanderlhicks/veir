@@ -148,6 +148,20 @@ forcing test still passes. See `harness/porting-notes.md` Gotcha 2.
 - [ ] If a new VEIR-side limitation surfaced, file it as a row in
   `harness/coverage.md` §Known cross-cutting limitations
 
+## Phase 7.5 — Quality gates + audit (~10 min)
+
+Don't skip — these caught real bugs during the 2026-05-15 session.
+
+- [ ] Run `scripts/check-llzk-quality-gates.sh`. Must exit 0. Lift
+      any sorry/axiom-in-new-files issues before continuing.
+- [ ] **For tier-batch close-out only**: spawn an audit agent per
+      `harness/audit-agent-prompt.md`. Single-port commits can skip
+      this; multi-port batches must run it.
+- [ ] If `llzk-opt` is available locally, run the dialect's
+      differential test. If it fails, triage: real port bug (fix it),
+      or structural divergence (XFAIL with documented reason per
+      `harness/quality-gates.md` §1).
+
 ## Phase 8 — Commit and merge
 
 Follow `harness/checkpoint-protocol.md`:
@@ -156,6 +170,9 @@ Follow `harness/checkpoint-protocol.md`:
 - [ ] Open a PR back to main; ensure `harness/coverage.md` shows the
       delta in the diff
 - [ ] After merge, tag `port-<dialect>-v1` (see checkpoint protocol)
+- [ ] **Push tags**: `git push --tags`. Or set
+      `git config --global push.followTags true` once.
+      (Forgetting this is gate §7 in `harness/quality-gates.md`.)
 
 ---
 

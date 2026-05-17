@@ -164,7 +164,16 @@ EOF
 3. **PR review checklist**: reviewer uses `harness/evaluation-criteria.md`
    §A / §B / §C as appropriate. PR description fills the §F template.
 4. **Post-merge tag**: tagged on the merge commit on `main`, not on
-   the feature branch. Push the tag.
+   the feature branch.
+5. **Push the tag.** `git push --tags`. Or one-time setup:
+   `git config --global push.followTags true` to auto-push annotated
+   tags with their commit. Forgetting this leaves the tag local-only
+   (this happened twice during the 2026-05-15 session before being
+   caught — gate §7 in `harness/quality-gates.md`).
+6. **Run quality gates.** `bash scripts/check-llzk-quality-gates.sh`
+   should exit 0 after the merge. CI runs this on PR via
+   `.github/workflows/llzk-quality-gates.yml`; the local run is the
+   pre-push check.
 
 ---
 
