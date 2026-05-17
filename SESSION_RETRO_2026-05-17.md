@@ -16,16 +16,20 @@ Three days of work; 36 commits on top of `origin/main`. Shipped:
   algebraic theorems, all imported into the default build (no
   orphan-file bitrot).
 - **Active differential testing harness** vs `llzk-opt` (built locally
-  via Nix, ~24h source build). 3 diffs pass, 6 XFAIL with documented
-  gating reasons. The harness caught two real port bugs that would
-  have shipped silently.
+  via Nix, ~24h source build). 4 diffs pass (post-structured-attr
+  un-XFAILing of Felt), 5 XFAIL with documented function.def-wrapper
+  gating reasons. The harness caught two real port bugs and the
+  IntegerAttr-vs-structured-attr divergence that would have shipped
+  silently.
 - **Harness expanded** from 7 docs to 9, with 6 gotchas + 4 reusable
   patterns accumulated in `harness/porting-notes.md`.
 - **Phase B retired** based on empirical evidence (the symbol-table
   spike turned out unnecessary for Tier 1+2).
 
-Build: 267/267. Lit: 327/327 (321 PASS + 6 XFAIL). Lake test: clean.
-Zero new `sorry` or `axiom` in this session's code or proofs.
+Build: 267/267. Lit: 329 total (324 PASS + 5 XFAIL with `LLZK_OPT`;
+321 PASS + 8 UNSUPPORTED without; post-FeltConstAttr regression tests
+added). Lake test: clean. Zero new `sorry` or `axiom` in this
+session's code or proofs.
 
 ## The session's arc
 

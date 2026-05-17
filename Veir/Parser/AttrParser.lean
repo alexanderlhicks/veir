@@ -380,7 +380,9 @@ def parseOptionalFeltConstAttr : AttrParserM (Option FeltConstAttr) := do
   -- generic keyword parser to consume it.
   if !(← parseOptionalKeyword "const".toByteArray) then
     throw "#felt<...> attribute body must begin with `const`"
-  let some val ← parseOptionalInteger false false
+  -- allowNegative := true so the parse∘print round-trip closes on
+  -- negative felt values (the printer always emits a leading `-`).
+  let some val ← parseOptionalInteger false true
     | throw "#felt<const ...> expects an integer value"
   parsePunctuation ">"
   parsePunctuation ":"

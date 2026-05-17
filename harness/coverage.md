@@ -191,7 +191,7 @@ opcodes that implement the interface.
 
 | Capability | Status | Caveats |
 |---|---|---|
-| FileCheck lit suite | ✅ | 327/327 as of 2026-05-17 (321 PASS + 6 XFAIL with `llzk-opt` active). The 6 XFAIL differentials are gated on Function dialect (Phase G.1) or the structured `#felt.const<v>` attribute — see below. |
+| FileCheck lit suite | ✅ | 329 total as of 2026-05-17 (post-FeltConstAttr + regression tests). Without `LLZK_OPT`: 321 PASS + 8 UNSUPPORTED. With `LLZK_OPT`: 324 PASS + 5 XFAIL + 0 FAIL. The 5 XFAIL differentials are gated on Function dialect (Phase G.1). |
 | Differential testing (vs `llzk-opt`) | ⚠️ Partial | Active when `LLZK_OPT` env or `llzk-opt` on `$PATH`. **4 of 9 tests pass cleanly** (post-2026-05-17): String (`literals`), Include (`from`), Felt (`arith` — newly un-XFAILed after the structured `#felt<const N>` parser landed), Global (def+read). **5 XFAIL**: Bool, Cast, RAM, Constrain, Global (`def_read_write` — includes `global.write`) — all require a `function.def` wrapper with specific attributes (`function.allow_non_native_field_ops`, `function.allow_constraint`, `function.allow_witness`). All remaining XFAILs lift at Phase G.1 (Function dialect). |
 | Unit tests (`lake test`) | ✅ | UnitTest target, 40/40. No Lean-level unit tests programmatically constructing and matching on LLZK `Attribute` cases (would catch Gotcha 2 from the Felt retro). |
 | `veir-opt` CLI | ✅ | Single binary, parses and re-prints. Pass pipeline via `-p`. |

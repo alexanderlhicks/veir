@@ -74,7 +74,10 @@ for path in paths:
             # Check what's left.
             if re.search(r'\bsorry\b', stripped):
                 bad.append(f"  {path}:{i}: sorry in code")
-            if re.match(r'\s*(public\s+)?axiom\b', stripped):
+            # Catch all axiom modifiers: public, private, protected,
+            # noncomputable, etc. After comment-stripping above, any
+            # `axiom` keyword in the residual code is suspect.
+            if re.search(r'\baxiom\b', stripped):
                 bad.append(f"  {path}:{i}: axiom in code")
 if bad:
     print("\n".join(bad))
@@ -109,14 +112,21 @@ if [[ "$LOCAL_FAIL" -eq 0 ]]; then echo "  PASS"; else FAIL=1; fi
 # --- §3 cont.: lit count consistency ----------------------------------
 # baseline.txt records the most recent lit-suite count; harness/coverage.md
 # and plan.md should mention the same number if they cite a count at all.
+# We look for the most recent `N total tests` line (the canonical
+# modern format) and fall back to `N of N pass` for older sections.
 echo "[gate §3] lit count consistency between baseline + coverage + plan..."
-BASELINE_COUNT="$(grep -oE '[0-9]+ of [0-9]+ pass|[0-9]+/[0-9]+ \(' baseline.txt 2>/dev/null | tail -1 | grep -oE '[0-9]+' | head -1)"
+BASELINE_COUNT="$(grep -oE '[0-9]+ total tests?' baseline.txt 2>/dev/null | tail -1 | grep -oE '[0-9]+' | head -1)"
+if [[ -z "$BASELINE_COUNT" ]]; then
+  BASELINE_COUNT="$(grep -oE '[0-9]+ of [0-9]+ pass' baseline.txt 2>/dev/null | tail -1 | grep -oE '[0-9]+' | head -1)"
+fi
 if [[ -n "${BASELINE_COUNT:-}" ]]; then
-  # Search coverage.md and plan.md for stale counts that are LOWER than
-  # the baseline (i.e., predate it).
-  STALE="$(grep -nE 'lit Test/ -v|lit Test/.*[0-9]+/[0-9]+|264/264|263/264|205/205|207/207|213/213' harness/coverage.md plan.md 2>/dev/null | grep -vE "${BASELINE_COUNT}" || true)"
+  # Search coverage.md and plan.md for stale OLD-format counts.
+  # Modern format ("N total" with breakdown) is hard to false-positive
+  # against, so we just check for the legacy `N/N` patterns that
+  # predate the addition of XFAIL counts.
+  STALE="$(grep -nE '264/264|263/264|205/205|207/207|213/213|255/255 (?!targets)' harness/coverage.md plan.md 2>/dev/null | grep -vE "$(printf '%s' "${BASELINE_COUNT}")" || true)"
   if [[ -n "$STALE" ]]; then
-    echo "  WARN: stale count references (baseline says ~$BASELINE_COUNT):"
+    echo "  WARN: legacy count references (baseline now $BASELINE_COUNT):"
     echo "$STALE" | sed 's/^/    /'
     # Warn only — exact counts will fluctuate as tests are added.
   fi

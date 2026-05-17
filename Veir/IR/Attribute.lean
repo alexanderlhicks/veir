@@ -294,7 +294,7 @@ inductive Attribute
 | modArithType (type : ModArithType)
 /-- LLZK felt type -/
 | feltType (type : FeltType)
-/-- LLZK felt-const attribute (`#felt.const<N>`) -/
+/-- LLZK felt-const attribute (`#felt<const N> : !felt.type`) -/
 | feltConstAttr (attr : FeltConstAttr)
 /-- LLZK string type -/
 | stringType (type : StringType)

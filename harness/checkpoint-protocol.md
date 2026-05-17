@@ -144,7 +144,7 @@ Tests: 264/264 (was 263/264)
 Coverage rows moved:
   - felt dialect: ❌ → ✅ (with caveats: traits, folder, custom-asm)
   - !felt.type, !felt.type<"name">: ❌ → ✅
-  - #felt.const<v>: stays ❌ (workaround: IntegerAttr)
+  - #felt<const v> : !felt.type: stays ❌ (workaround: IntegerAttr — superseded 2026-05-17, see structured FeltConstAttr)
 
 Acceptance criteria: harness/evaluation-criteria.md §A
 EOF

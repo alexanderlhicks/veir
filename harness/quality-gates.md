@@ -45,11 +45,11 @@ proof files in `Veir/Passes/<Dialect>/Proofs.lean` and
 **How**:
 - Every commit that adds or modifies a file under
   `Veir/Passes/*/Proofs.lean`, `Veir/Data/*/`, or new files anywhere
-  under `Veir/Dialects/LLZK/` must satisfy:
-  ```
-  grep -rn '\bsorry\b\|^axiom \|^public axiom ' <file>
-  ```
-  returns empty.
+  under `Veir/Dialects/LLZK/` must contain no `sorry` or `axiom`
+  keyword in *non-comment* code (any modifier: `public`, `private`,
+  `protected`, `noncomputable`). The canonical check is
+  `scripts/check-llzk-quality-gates.sh` which strips Lean comments
+  (line `--` and block `/- ... -/` / `/-- ... -/`) before grepping.
 - The pass-implementation files (`Veir/Passes/<Dialect>/Combine.lean`,
   etc.) may use `sorry` for rewriter precondition discharge — that's
   the established pattern (see `harness/coverage.md` §Verification

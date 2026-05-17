@@ -89,3 +89,56 @@ Verification machinery (harness/coverage.md §Verification):
 
 Tags:
   port-string-v1, port-include-v1, tier-1-complete
+
+================================================================
+# Baseline at 83a60e4 (structured #felt<const N> attribute)
+# Branch: llzkfelt_test1, base: main @ 3663d6e
+# Date: 2026-05-17
+
+## lake build
+
+CLEAN (267/267 targets). Gains since the prior 255-baseline:
++12 from per-dialect LLZK files added during Phase D.1 Global,
+verified-pass pilots E.1-E.4, and Phase D.4 Bool full.
+
+## lake test
+
+CLEAN. UnitTest target 110 jobs.
+
+## uv run lit Test/ -v
+
+327 total tests.
+  Without LLZK_OPT: 319 PASS + 8 UNSUPPORTED (differentials skipped)
+  With    LLZK_OPT: 322 PASS + 5 XFAIL + 0 FAIL
+
+## scripts/check-llzk-quality-gates.sh
+
+All gates PASS (one informational WARN about historical lit-count refs).
+
+## Differential testing status (with LLZK_OPT set)
+
+PASS (4): String/literals, Include/from, Felt/arith (newly un-XFAILed
+  by the structured #felt<const N> attribute), and the verified-pass
+  scaffolding.
+XFAIL (5): Bool/logical, Cast/casts, Constrain/eq, RAM/load_store,
+  Global/def_read_write — all require a function.def wrapper with
+  specific attributes; lifts at Phase G.1.
+
+## Coverage delta since 310-baseline
+
+LLZK dialects:
+  bool        ⚠️ → ✅ (cmp via IntegerAttr workaround, Phase D.4)
+  global      ❌ → ✅ (Phase D.1, then post-llzk-opt sym_name fix)
+
+Verification machinery:
+  First verified LLZK pass         ❌ → ✅ (Phase E.1)
+  + 3 more verified pilots         (E.2, E.3, E.4 — all in felt-combine)
+
+Infrastructure:
+  Per-dialect structured attribute  ❌ → ✅ (#felt<const N>, 2026-05-17)
+  Differential testing               offline → 4 PASS + 5 XFAIL
+  LLZK quality-gates script           ❌ → ✅
+  llzk-quality-gates.yml CI           ❌ → ✅
+
+Tags:
+  + verif-felt-right-identity-v1, verif-felt-combine-v2

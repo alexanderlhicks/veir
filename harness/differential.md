@@ -3,22 +3,28 @@
 Architecture for catching silent semantic drift between VEIR's
 implementation of an LLZK dialect and LLZK's own C++ implementation.
 
-**Status**: scaffold complete. Hardened script + per-dialect tests
-land at `scripts/llzk-diff.sh` and `Test/LLZK/<dialect>/differential/`
-(8 inputs as of 2026-05-15: 7 Tier-1 + 1 Tier-2 Global; 1 allowlist for
-the Felt IntegerAttr divergence). Running the diffs requires a local
-build of `llzk-opt` (see §3.1). Tests carry `// REQUIRES: llzk-opt`
-and lit auto-skips them as `UNSUPPORTED` when the binary is missing —
-the suite stays green on hosts without LLZK built.
+**Status**: scaffold complete and exercised against a built `llzk-opt`.
+Hardened script + per-dialect tests land at `scripts/llzk-diff.sh`
+and `Test/LLZK/<dialect>/differential/` (8 inputs as of 2026-05-17:
+7 Tier-1 + 1 Tier-2 Global; no allowlists currently — the
+IntegerAttr-vs-`#felt<const N>` divergence that the Felt allowlist
+used to bridge was eliminated when the structured `FeltConstAttr`
+parser landed). Running the diffs requires a local build of
+`llzk-opt` (see §3.1). Tests carry `// REQUIRES: llzk-opt` and lit
+auto-skips them as `UNSUPPORTED` when the binary is missing — the
+suite stays green on hosts without LLZK built.
 
 **Smoke check** (host without llzk-opt; full lit suite):
 ```
 $ uv run lit Test/ -v
 …
-Total Discovered Tests: 322
-  Unsupported:   8 (2.48%)   ← differential tests
-  Passed     : 314 (97.52%)
+Total Discovered Tests: 329
+  Unsupported:   8 (2.43%)   ← differential tests
+  Passed     : 321 (97.57%)
 ```
+
+**With `llzk-opt` active**: 324 PASS + 5 XFAIL + 0 FAIL. The 5 XFAIL
+differentials all need a `function.def` wrapper (Phase G.1) to lift.
 
 ---
 
@@ -35,7 +41,7 @@ drift between them:
    FileCheck tests against VEIR's own output won't catch this.
 2. **Semantic divergence** — VEIR's typed representation loses
    information that LLZK preserves. Example: the `FeltConst`
-   `IntegerAttr` workaround — LLZK's `<{value = #felt.const<42>}>`
+   `IntegerAttr` workaround — LLZK's `<{value = #felt<const 42> : !felt.type}>`
    becomes VEIR's `<{"value" = 42 : i256}>`. Round-trip via VEIR
    degrades the IR even when both forms parse.
 
@@ -85,9 +91,11 @@ in a per-test allowlist file. Each entry references the coverage row
 that documents the divergence:
 
 ```
-# Test/LLZK/Felt/differential/felt-const.allowlist
+# Example syntax (no Test/LLZK/* currently uses an allowlist — the
+# original Felt IntegerAttr divergence that needed one was eliminated
+# in 2026-05-17 by adding the structured FeltConstAttr parser).
 # Each line: "<from_pattern>" -> "<to_pattern>" (coverage row)
-"#felt.const<42>" -> "42 : i256"   (coverage.md §Attributes:#felt.const)
+# "<{value = some.dialect-printed-form}>" -> "<{value = veir-printed-form}>"   (coverage.md §SomeRow)
 ```
 
 The rule is matched as a **fixed string** (no regex) and applied
@@ -209,7 +217,7 @@ its `identity.mlir` passes. The rollout order:
 
 | Dialect | Differential test added | Notes |
 |---|---|---|
-| Felt | ✅ scaffolded | `differential/arith.mlir` + `.allowlist` — encodes the `#felt.const<v>` ↔ `IntegerAttr` divergence. |
+| Felt | ✅ scaffolded — PASSES (`differential/arith.mlir`). Allowlist removed 2026-05-17 once the structured `FeltConstAttr` parser landed; no current divergence. Limited to `felt.const` at module level since felt arith ops require a `function.def` wrapper in LLZK. |
 | String | ✅ scaffolded | `differential/literals.mlir`. No known divergences. |
 | Include | ✅ scaffolded | `differential/from.mlir`. Exercises FlatSymbolRefAttr round-trip. |
 | RAM | ✅ scaffolded | `differential/load_store.mlir`. MemRead/MemWrite not in printed form, so expect a match. |

@@ -60,12 +60,15 @@ def self_subtraction_to_zero (rewriter : PatternRewriter OpCode) (op : Operation
   let some (lhs, rhs, _) := matchSub op rewriter.ctx | return rewriter
   -- ValuePtr equality: both operands flow from the same SSA value.
   if lhs ≠ rhs then return rewriter
-  -- Synthesize a `#felt<const 0> : !felt.type` (structured form post-2026-05-17).
-  -- Use an unnamed felt field; if the surrounding context has a named
-  -- field, a later canonicalizer (not implemented) would refine it.
-  let cstProp : FeltConstProperties :=
-    { value := { value := 0, fieldType := { fieldName := none } } }
+  -- Extract the operand's felt-type so the synthesized const's
+  -- structured attribute (fieldType) matches its own result type.
+  -- Without this, on bn254-typed felt the synthesized const would
+  -- carry `#felt<const 0> : !felt.type` while having result type
+  -- `!felt.type<"bn254">` — which LLZK rejects.
   let resultType := lhs.getType! rewriter.ctx.raw
+  let Attribute.feltType ft := resultType.val | return rewriter
+  let cstProp : FeltConstProperties :=
+    { value := { value := 0, fieldType := ft } }
   let (rewriter, newOp) ← rewriter.createOp (OpCode.felt Felt.const)
     #[resultType] #[] #[] #[] cstProp (some <| .before op) sorry sorry sorry sorry
   rewriter.replaceOp op newOp sorry sorry sorry sorry sorry

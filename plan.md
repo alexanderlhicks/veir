@@ -213,8 +213,12 @@ Three rules:
 ## Iteration commands (unchanged from Felt)
 
 ```bash
-lake build                       # 267/267 as of 2026-05-15
+lake build                       # 267/267 as of 2026-05-17
 lake test                        # UnitTest target — 110 jobs, clean
-uv run lit Test/ -v              # 322/322 (314 pass + 8 UNSUPPORTED differential)
+uv run lit Test/ -v              # 327 total
+                                 #   without LLZK_OPT: 319 PASS + 8 UNSUPPORTED
+                                 #   with    LLZK_OPT: 322 PASS + 5 XFAIL + 0 FAIL
 uv run lit Test/LLZK/<Dialect>/identity.mlir -v
+export LLZK_OPT=<path>           # activates the 5 XFAIL'd differentials + 4 PASS diffs
+bash scripts/check-llzk-quality-gates.sh   # static quality gates (sorry/axiom, coverage, tags)
 ```

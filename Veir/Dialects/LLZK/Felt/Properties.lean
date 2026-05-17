@@ -11,10 +11,11 @@ public section
   Properties of the `felt.const` operation.
 
   The `value` field is a structured `FeltConstAttr` (printed as
-  `#felt.const<N>`), matching LLZK's native form. **2026-05-17**: was
-  previously `IntegerAttr` as a workaround; upgraded to the structured
-  form when the per-dialect attribute parser infra landed. The Felt
-  differential test against `llzk-opt` is no longer XFAIL.
+  `#felt<const N> : !felt.type[<"name">]`), matching LLZK's native
+  form. **2026-05-17**: was previously `IntegerAttr` as a workaround;
+  upgraded to the structured form when the per-dialect attribute
+  parser infra landed. The Felt differential test against `llzk-opt`
+  is no longer XFAIL.
 -/
 structure FeltConstProperties where
   value : FeltConstAttr
@@ -27,7 +28,7 @@ def FeltConstProperties.fromAttrDict (attrDict : Std.HashMap ByteArray Attribute
   let some attr := attrDict["value".toUTF8]?
     | throw "felt.const: missing 'value' property"
   let .feltConstAttr fcAttr := attr
-    | throw s!"felt.const: expected 'value' to be a `#felt.const<N>` attribute, but got {attr}"
+    | throw s!"felt.const: expected 'value' to be a `#felt<const N> : !felt.type` attribute, but got {attr}"
   return { value := fcAttr }
 
 end

@@ -31,6 +31,96 @@ instance for new types exists, printing is automatic.
 
 ---
 
+## 2026-05-17 — Pattern: round-trip is a port-quality bar
+
+**Discovery (FeltConstAttr post-audit, Real Issue #2)**: When adding a
+new structured attribute (or any new IR element with both parser and
+printer), the *parse ∘ print = id* invariant is a non-negotiable
+correctness bar. My `parseOptionalFeltConstAttr` originally passed
+`allowNegative := false` to `parseOptionalInteger`, but the printer
+emitted negative integers verbatim. Result: any value < 0 round-tripped
+through `print` then `parse` failed with "expected an integer value".
+
+**How to apply**: every new parser/printer pair gets at least one
+explicit round-trip lit test exercising the corner cases of the value
+space:
+- For numeric payloads: negative, zero, large (bigger than `i64`).
+- For optional fields: present and absent.
+- For string payloads: empty, with embedded quotes, with escape chars.
+- For nested structures: each variant of the inner type.
+
+A one-line regression test (`Test/LLZK/<dialect>/passes/<edge>_roundtrip.mlir`)
+catches the bug class. See
+`Test/LLZK/Felt/passes/negative_const_roundtrip.mlir` for the
+prototype.
+
+---
+
+## 2026-05-17 — Pattern: result-type / attribute-type consistency in synthesized ops
+
+**Discovery (FeltConstAttr post-audit, Real Issue #3)**:
+`self_subtraction_to_zero` originally hard-coded
+`fieldType := { fieldName := none }` for the synthesized `felt.const`,
+producing this kind of mismatch on bn254-typed input:
+```mlir
+"felt.const"() <{value = #felt<const 0> : !felt.type}> : () -> !felt.type<"bn254">
+                                       ^^^^^^^^^^^^               ^^^^^^^^^^^^^^^^^^^
+                                       attribute fieldType        result type
+```
+LLZK's verifier rejects this. The test corpus didn't include a
+bn254-typed `felt.sub`, so the bug wasn't caught locally — it would
+have shipped silently until somebody fed bn254 LLZK IR through VEIR.
+
+**How to apply**: when a pattern synthesizes an op whose result type
+is taken from an operand's existing type (e.g.
+`resultType := lhs.getType! ctx`), and the new op's properties carry
+a *structured* type-bearing attribute (`FeltConstAttr.fieldType`,
+future `BoolCmpAttr`-with-typed-predicate, struct member attrs):
+
+1. **Extract the structured type's components from the actual
+   resultType**, not from defaults. Pattern:
+   ```lean
+   let resultType := lhs.getType! rewriter.ctx.raw
+   let Attribute.feltType ft := resultType.val | return rewriter
+   let cstProp : FeltConstProperties :=
+     { value := { value := 0, fieldType := ft } }
+   ```
+2. **Add a regression test on a named-field variant** of the type
+   (`!felt.type<"bn254">`, `!struct.type<@Foo<[...]>>`, etc.) for any
+   pattern that synthesizes a typed structured attribute.
+
+This is a generalization of the "preserve fieldType" thinking already
+in `constant_fold_add` and `assoc_const_fold_add` (which preserve via
+`cstL.value.fieldType` from a matched const), now extended to
+synthesizing-from-defaults cases.
+
+---
+
+## 2026-05-17 — Procedure: differential XFAIL → PASS transitions
+
+**Discovery (FeltConstAttr post-audit, Real Issue #4)**: When the
+Felt differential test was un-XFAIL'd, the directive in the test file
+was updated but `harness/coverage.md`'s summary count
+(`322 PASS + 5 XFAIL`) and the explanation clause ("or the structured
+`#felt.const<v>` attribute") stayed at the pre-fix state. Both went
+stale in the same commit that fixed the underlying issue.
+
+**How to apply**: when moving a differential test from `// XFAIL` to
+`// REQUIRES`, update all three sites *in the same commit*:
+
+1. The directive: `// XFAIL: llzk-opt` → `// REQUIRES: llzk-opt`.
+2. The header comment explaining why the test exists.
+3. The summary in `harness/coverage.md`'s §Tests row: the
+   `N PASS + M XFAIL` count *and* any prose listing the gating
+   reasons (e.g. "5 XFAIL gated on Phase G.1" — the count and the
+   prose must agree).
+
+The `harness/quality-gates.md` §3 lit-count consistency gate would
+ideally catch this; the current script only catches numeric drift,
+not prose drift. Manual discipline required.
+
+---
+
 ## 2026-05-17 — Pattern: per-dialect structured attributes
 
 **Discovery (post-Felt-differential triage)**: VEIR's first per-dialect
@@ -534,21 +624,35 @@ be lowercase. If LLZK's dialect name has underscores or mixed case
 
 ## 2026-05-02 — `IntegerAttr` is the workaround for missing structured attrs
 
+**SUPERSEDED 2026-05-17 for felt.const specifically** — see the
+2026-05-17 "per-dialect structured attributes" entry above. The
+recipe documented there shows how to add a real structured attribute
+when the workaround isn't acceptable. The IntegerAttr workaround
+remains the recommended pattern for simple enums (e.g., `bool.cmp`'s
+predicate); only structured payloads where LLZK rejects the
+IntegerAttr-coerced form on parse need to upgrade.
+
 **Discovery (Felt port)**: VEIR has no per-dialect attribute parser
 today. Every `#dialect.name<...>` falls through to `UnregisteredAttr`.
 Adding the first one is real new infrastructure.
 
-LLZK's `#felt.const<value>` carries both an `APInt` and the field type.
-VEIR's port stores `felt.const`'s value as `IntegerAttr` instead,
-mirroring VEIR's existing `arith.constant` / `mod_arith.constant`
-precedent. The cost: printed output uses `<{"value" = 42 : i256}>`
-instead of LLZK's `<{"value" = #felt.const<42>}>`.
+LLZK's `#felt<const N> : !felt.type` carries both an `APInt` and the
+field type. VEIR's port originally stored `felt.const`'s value as
+`IntegerAttr`, mirroring VEIR's existing `arith.constant` /
+`mod_arith.constant` precedent. The cost: printed output used
+`<{"value" = 42 : i256}>` instead of LLZK's structured form. LLZK
+refuses to parse the IntegerAttr form on input, so differential
+testing failed — which forced the structured-attribute upgrade in
+2026-05-17.
 
 **How to apply**: For any LLZK structured attribute, the first
 question is "can I use `IntegerAttr` (or another built-in) instead?".
-The answer is *yes* for simple enums (predicates, kinds) and *no* for
-parametric attribute lists (`<[5, @C, !felt.type, #map]>` for Struct).
-The workaround must be recorded in `harness/coverage.md` (§Attributes).
+The answer is *yes if VEIR's round-trip is the only consumer* and
+*no if differential testing against `llzk-opt` is in scope* (because
+LLZK rejects the IntegerAttr-coerced form on parse). Re-evaluate
+once Phase G.1 (Function) lifts more differential tests. Either way
+the workaround must be recorded in `harness/coverage.md`
+(§Attributes).
 
 **Re-evaluate when**: the next port has parameter lists or genuine
 multi-field attributes — likely Polymorphic or Struct.
